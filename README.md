@@ -18,7 +18,7 @@ A **API Finanças** é uma aplicação backend desenvolvida em **Java** com **Sp
 
 O sistema permite organizar receitas e despesas por categorias, utilizando uma arquitetura REST, persistência com PostgreSQL e recursos modernos do ecossistema Spring.
 
-O projeto está sendo desenvolvido com foco em boas práticas, organização em camadas, separação de responsabilidades, uso de DTOs, documentação da API e testes automatizados.
+O projeto está sendo desenvolvido com foco em boas práticas, organização em camadas, separação de responsabilidades, uso de DTOs, documentação da API, tratamento de exceções e testes automatizados.
 
 ---
 
@@ -47,6 +47,7 @@ O projeto segue uma organização em camadas, separando responsabilidades para f
 * **Controllers**: classes responsáveis por disponibilizar os endpoints da API.
 * **Services**: classes responsáveis pelas regras de negócio.
 * **DTOs**: objetos utilizados para entrada e saída de dados da API.
+* **Exceptions**: classes responsáveis por representar erros de validação e registros não encontrados.
 * **Configurations**: classes de configuração do projeto, como Swagger e ObjectMapper.
 * **Security**: camada prevista para autenticação e proteção dos endpoints.
 
@@ -69,20 +70,28 @@ O projeto segue uma organização em camadas, separando responsabilidades para f
 
 # ✅ Funcionalidades implementadas
 
-## 🧩 Criação de categorias
+## 🧩 CRUD de categorias
 
-Foi desenvolvido o fluxo de criação de categorias financeiras, permitindo cadastrar categorias que poderão ser utilizadas para organizar receitas e despesas.
+Foi desenvolvido o fluxo de gerenciamento de categorias financeiras, permitindo cadastrar, alterar, excluir e consultar categorias que poderão ser utilizadas para organizar receitas e despesas.
 
 A implementação contempla:
 
 * Criação do endpoint para cadastro de categorias.
+* Criação do endpoint para alteração de categorias.
+* Criação do endpoint para exclusão de categorias.
+* Criação do endpoint para consulta de categorias.
 * Criação dos DTOs `CategoriaRequest` e `CategoriaResponse`.
 * Desenvolvimento do serviço `CategoriaService`.
 * Integração com o repositório `CategoriaRepository`.
-* Retorno da categoria cadastrada contendo `id` e `nome`.
+* Retorno da categoria contendo `id` e `nome`.
+* Criação da exceção `ValidacaoException`.
+* Criação da exceção `RegistroNaoEncontradoException`.
+* Validação do nome da categoria.
+* Tratamento de erro para dados inválidos.
+* Tratamento de erro para categoria não encontrada.
 * Configuração do `ObjectMapper`.
 * Configuração da documentação da API com Swagger/OpenAPI.
-* Desenvolvimento de teste automatizado com JUnit e MockMvc.
+* Desenvolvimento de testes automatizados com JUnit e MockMvc.
 
 ---
 
@@ -96,7 +105,7 @@ A implementação contempla:
 POST /api/v1/categorias/criar
 ```
 
-### Exemplo de requisição
+#### Exemplo de requisição
 
 ```json
 {
@@ -104,7 +113,7 @@ POST /api/v1/categorias/criar
 }
 ```
 
-### Exemplo de resposta
+#### Exemplo de resposta
 
 ```json
 {
@@ -113,25 +122,157 @@ POST /api/v1/categorias/criar
 }
 ```
 
-### Resposta esperada
+#### Resposta esperada
 
 ```http
 201 Created
+```
+
+#### Possíveis erros
+
+```http
+400 Bad Request
+```
+
+Exemplos de mensagens:
+
+```text
+O nome da categoria é obrigatório.
+```
+
+```text
+O nome da categoria deve ter pelo menos 6 caracteres.
+```
+
+---
+
+### Alterar categoria
+
+```http
+PUT /api/v1/categorias/alterar/{id}
+```
+
+#### Exemplo de requisição
+
+```json
+{
+  "nome": "Mercado"
+}
+```
+
+#### Exemplo de resposta
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "nome": "Mercado"
+}
+```
+
+#### Resposta esperada
+
+```http
+200 OK
+```
+
+#### Possíveis erros
+
+```http
+404 Not Found
+```
+
+Exemplo de mensagem:
+
+```text
+Categoria não encontrada.
+```
+
+---
+
+### Excluir categoria
+
+```http
+DELETE /api/v1/categorias/excluir/{id}
+```
+
+#### Exemplo de resposta
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "nome": "Mercado"
+}
+```
+
+#### Resposta esperada
+
+```http
+200 OK
+```
+
+#### Possíveis erros
+
+```http
+404 Not Found
+```
+
+Exemplo de mensagem:
+
+```text
+Categoria não encontrada.
+```
+
+---
+
+### Consultar categorias
+
+```http
+GET /api/v1/categorias/consultar
+```
+
+#### Exemplo de resposta
+
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "nome": "Alimentação"
+  },
+  {
+    "id": "8b9f3a9d-3a3b-4d1a-9c2e-9f0a5a6b7c8d",
+    "nome": "Transporte"
+  }
+]
+```
+
+#### Resposta esperada
+
+```http
+200 OK
 ```
 
 ---
 
 # 🧪 Testes
 
-Foi implementado um teste de integração para validar o endpoint de criação de categorias.
+Foram implementados testes automatizados para validar o comportamento do endpoint de criação de categorias.
 
-O teste verifica se:
+Os testes verificam se:
 
-* a API retorna o status HTTP `201 Created`;
+* a API retorna o status HTTP `201 Created` ao criar uma categoria válida;
 * o campo `id` é retornado preenchido;
-* o nome retornado na resposta é igual ao nome enviado na requisição.
+* o nome retornado na resposta é igual ao nome enviado na requisição;
+* a API retorna `400 Bad Request` quando o nome da categoria está vazio;
+* a API retorna `400 Bad Request` quando o nome da categoria possui menos de 6 caracteres;
+* as mensagens de erro são retornadas corretamente.
 
-Para executar os testes, utilize:
+Para executar os testes no Windows, utilize:
+
+```bash
+.\mvnw.cmd test
+```
+
+Ou, caso tenha o Maven instalado globalmente:
 
 ```bash
 mvn test
@@ -171,8 +312,36 @@ A documentação da API poderá ser acessada pelo Swagger, conforme configuraç�
 
 ---
 
+# 🧾 Comandos Git úteis
+
+Verificar alterações:
+
+```bash
+git status
+```
+
+Adicionar alterações:
+
+```bash
+git add .
+```
+
+Criar commit:
+
+```bash
+git commit -m "feat: implementar CRUD de categorias"
+```
+
+Enviar para o GitHub:
+
+```bash
+git push origin main
+```
+
+---
+
 # 📖 Status
 
 🚧 Projeto em desenvolvimento.
 
-Atualmente, o projeto possui o fluxo de criação de categorias implementado, com endpoint REST, camada de serviço, DTOs, integração com repositório, documentação Swagger/OpenAPI e teste automatizado com JUnit e MockMvc.
+Atualmente, o projeto possui o CRUD de categorias implementado, com endpoints REST, camada de serviço, DTOs, integração com repositório, tratamento de exceções, documentação Swagger/OpenAPI e testes automatizados com JUnit e MockMvc.

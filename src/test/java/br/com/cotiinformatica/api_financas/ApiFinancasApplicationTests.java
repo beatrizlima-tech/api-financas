@@ -27,7 +27,7 @@ class ApiFinancasApplicationTests {
 	private ObjectMapper objectMapper;
 
 	@Test
-	@DisplayName("Deve criar uma categoria com sucesso")
+	@DisplayName("Deve criar uma categoria com sucesso.")
 	public void criarCategoriaTest() throws Exception {
 
 		//ARRANGE (Preparar os dados do teste)
@@ -50,5 +50,45 @@ class ApiFinancasApplicationTests {
 
 		//ASSERT: O nome da categoria retornado deve ser igual ao enviado no cadastro
 		assertEquals(request.nome(), response.nome());
+	}
+
+	@Test
+	@DisplayName("Deve retornar erro se o nome da categoria estiver vazio.")
+	public void validarNomeDaCategoriaObrigatorioTest() throws Exception {
+
+		//ARRANGE (Preparar os dados do teste)
+		var request = new CategoriaRequest("");
+
+		//ACT (Executar o endpoint POST /api/v1/categorias/criar)
+		var result = mockMvc.perform(
+						post("/api/v1/categorias/criar") //Requisição POST para a API
+								.contentType("application/json") //Formato dos dados (JSON)
+								.content(objectMapper.writeValueAsString(request))) //Dados enviados
+				.andExpect(status().isBadRequest()) //Esperando retorno HTTP 400
+				.andReturn(); //Capturando os dados da resposta
+
+		//ASSERT (verificar o resultado do teste)
+		var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertTrue(jsonContent.contains("O nome da categoria é obrigatório."));
+	}
+
+	@Test
+	@DisplayName("Deve retornar erro se o nome da categoria tiver menos de 6 caracteres.")
+	public void validarNomeDaCategoriaMinimoDeCaracteresTest() throws Exception {
+
+		//ARRANGE (Preparar os dados do teste)
+		var request = new CategoriaRequest("Teste");
+
+		//ACT (Executar o endpoint POST /api/v1/categorias/criar)
+		var result = mockMvc.perform(
+						post("/api/v1/categorias/criar") //Requisição POST para a API
+								.contentType("application/json") //Formato dos dados (JSON)
+								.content(objectMapper.writeValueAsString(request))) //Dados enviados
+				.andExpect(status().isBadRequest()) //Esperando retorno HTTP 400
+				.andReturn(); //Capturando os dados da resposta
+
+		//ASSERT (verificar o resultado do teste)
+		var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertTrue(jsonContent.contains("O nome da categoria deve ter pelo menos 6 caracteres."));
 	}
 }
