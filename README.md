@@ -16,7 +16,7 @@
 
 A **API Finanças** é uma aplicação backend desenvolvida em **Java** com **Spring Boot**, destinada ao gerenciamento de finanças pessoais.
 
-O sistema permite organizar receitas e despesas por categorias, utilizando uma arquitetura REST, persistência com PostgreSQL e recursos modernos do ecossistema Spring.
+O sistema permitirá organizar receitas e despesas por categorias, utilizando uma arquitetura REST, persistência com PostgreSQL e recursos modernos do ecossistema Spring.
 
 O projeto está sendo desenvolvido com foco em boas práticas, organização em camadas, separação de responsabilidades, uso de DTOs, documentação da API, tratamento de exceções e testes automatizados.
 
@@ -40,7 +40,7 @@ O projeto está sendo desenvolvido com foco em boas práticas, organização em 
 
 # 📂 Estrutura do projeto
 
-O projeto segue uma organização em camadas, separando responsabilidades para facilitar manutenção, testes e evolução da aplicação.
+O projeto segue uma organização em camadas, separando responsabilidades para facilitar a manutenção, os testes e a evolução da aplicação.
 
 * **Entities**: classes que representam as tabelas do banco de dados.
 * **Repositories**: interfaces responsáveis pela comunicação com o banco de dados.
@@ -72,26 +72,54 @@ O projeto segue uma organização em camadas, separando responsabilidades para f
 
 ## 🧩 CRUD de categorias
 
-Foi desenvolvido o fluxo de gerenciamento de categorias financeiras, permitindo cadastrar, alterar, excluir e consultar categorias que poderão ser utilizadas para organizar receitas e despesas.
+Foi desenvolvido o fluxo de gerenciamento de categorias financeiras, permitindo cadastrar, alterar, excluir, consultar e obter categorias por identificador.
+
+As categorias poderão ser utilizadas posteriormente para organizar as receitas e despesas cadastradas no sistema.
 
 A implementação contempla:
 
 * Criação do endpoint para cadastro de categorias.
 * Criação do endpoint para alteração de categorias.
 * Criação do endpoint para exclusão de categorias.
-* Criação do endpoint para consulta de categorias.
+* Criação do endpoint para consulta de todas as categorias.
+* Criação do endpoint para obtenção de categoria por ID.
 * Criação dos DTOs `CategoriaRequest` e `CategoriaResponse`.
 * Desenvolvimento do serviço `CategoriaService`.
 * Integração com o repositório `CategoriaRepository`.
-* Retorno da categoria contendo `id` e `nome`.
+* Retorno das categorias contendo `id` e `nome`.
 * Criação da exceção `ValidacaoException`.
 * Criação da exceção `RegistroNaoEncontradoException`.
-* Validação do nome da categoria.
+* Validação do nome durante o cadastro e a alteração de categorias.
 * Tratamento de erro para dados inválidos.
 * Tratamento de erro para categoria não encontrada.
 * Configuração do `ObjectMapper`.
 * Configuração da documentação da API com Swagger/OpenAPI.
 * Desenvolvimento de testes automatizados com JUnit e MockMvc.
+* Configuração de um perfil específico para o ambiente de testes.
+
+---
+
+# 🚧 Funcionalidades em desenvolvimento
+
+## 💸 API de movimentações
+
+Foi iniciada a construção da API responsável pelo gerenciamento das movimentações financeiras.
+
+Nesta etapa, foi criada a estrutura inicial do `MovimentacaoController`, com o mapeamento base:
+
+```http
+/api/v1/movimentacoes
+```
+
+O controller possui estruturas iniciais para as seguintes operações:
+
+* Cadastro de movimentações.
+* Alteração de movimentações.
+* Exclusão de movimentações.
+* Consulta de movimentações.
+* Obtenção de movimentação.
+
+As regras de negócio, os DTOs, as validações, a integração com o repositório e as respostas definitivas dos endpoints serão implementados nas próximas etapas do projeto.
 
 ---
 
@@ -156,7 +184,7 @@ PUT /api/v1/categorias/alterar/{id}
 
 ```json
 {
-  "nome": "Mercado"
+  "nome": "Categoria Alterada"
 }
 ```
 
@@ -165,7 +193,7 @@ PUT /api/v1/categorias/alterar/{id}
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "nome": "Mercado"
+  "nome": "Categoria Alterada"
 }
 ```
 
@@ -176,6 +204,20 @@ PUT /api/v1/categorias/alterar/{id}
 ```
 
 #### Possíveis erros
+
+```http
+400 Bad Request
+```
+
+Exemplos de mensagens:
+
+```text
+O nome da categoria é obrigatório.
+```
+
+```text
+O nome da categoria deve ter pelo menos 6 caracteres.
+```
 
 ```http
 404 Not Found
@@ -200,7 +242,7 @@ DELETE /api/v1/categorias/excluir/{id}
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
-  "nome": "Mercado"
+  "nome": "Categoria Alterada"
 }
 ```
 
@@ -253,18 +295,65 @@ GET /api/v1/categorias/consultar
 
 ---
 
+### Obter categoria por ID
+
+```http
+GET /api/v1/categorias/obter/{id}
+```
+
+#### Exemplo de resposta
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "nome": "Alimentação"
+}
+```
+
+#### Resposta esperada
+
+```http
+200 OK
+```
+
+#### Possíveis erros
+
+```http
+404 Not Found
+```
+
+Exemplo de mensagem:
+
+```text
+Categoria não encontrada.
+```
+
+---
+
 # 🧪 Testes
 
-Foram implementados testes automatizados para validar o comportamento do endpoint de criação de categorias.
+Foram implementados testes automatizados para validar os principais comportamentos da API de categorias.
 
-Os testes verificam se:
+Os testes utilizam **JUnit**, **MockMvc**, **ObjectMapper**, o contexto do Spring Boot e um perfil específico para o ambiente de testes.
 
-* a API retorna o status HTTP `201 Created` ao criar uma categoria válida;
-* o campo `id` é retornado preenchido;
-* o nome retornado na resposta é igual ao nome enviado na requisição;
-* a API retorna `400 Bad Request` quando o nome da categoria está vazio;
-* a API retorna `400 Bad Request` quando o nome da categoria possui menos de 6 caracteres;
-* as mensagens de erro são retornadas corretamente.
+Atualmente, os testes verificam os seguintes cenários:
+
+* criação de uma categoria com sucesso;
+* retorno do status HTTP `201 Created`;
+* preenchimento do identificador da categoria criada;
+* retorno correto do nome enviado no cadastro;
+* retorno `400 Bad Request` quando o nome está vazio;
+* retorno `400 Bad Request` quando o nome possui menos de seis caracteres;
+* validação das mensagens de erro do cadastro;
+* alteração de uma categoria com sucesso;
+* manutenção do identificador após a alteração;
+* retorno `404 Not Found` ao alterar uma categoria inexistente;
+* exclusão de uma categoria com sucesso;
+* retorno dos dados da categoria excluída;
+* retorno `404 Not Found` ao excluir uma categoria inexistente;
+* obtenção de uma categoria por ID;
+* retorno `404 Not Found` ao obter uma categoria inexistente;
+* consulta da lista de categorias cadastradas.
 
 Para executar os testes no Windows, utilize:
 
@@ -308,28 +397,28 @@ A API ficará disponível em:
 http://localhost:8083
 ```
 
-A documentação da API poderá ser acessada pelo Swagger, conforme configuração do projeto.
+A documentação da API poderá ser acessada pelo Swagger, conforme a configuração do projeto.
 
 ---
 
 # 🧾 Comandos Git úteis
 
-Verificar alterações:
+Verificar as alterações:
 
 ```bash
 git status
 ```
 
-Adicionar alterações:
+Adicionar as alterações:
 
 ```bash
 git add .
 ```
 
-Criar commit:
+Criar o commit desta atualização:
 
 ```bash
-git commit -m "feat: implementar CRUD de categorias"
+git commit -m "feat: iniciar estrutura da API de movimentações e ampliar testes de categorias"
 ```
 
 Enviar para o GitHub:
@@ -344,4 +433,8 @@ git push origin main
 
 🚧 Projeto em desenvolvimento.
 
-Atualmente, o projeto possui o CRUD de categorias implementado, com endpoints REST, camada de serviço, DTOs, integração com repositório, tratamento de exceções, documentação Swagger/OpenAPI e testes automatizados com JUnit e MockMvc.
+Atualmente, o projeto possui o CRUD de categorias implementado, incluindo cadastro, alteração, exclusão, consulta geral e obtenção por ID.
+
+O módulo de categorias conta com camada de serviço, DTOs, integração com repositório, validação no cadastro e na alteração, tratamento de exceções, documentação Swagger/OpenAPI e testes automatizados com JUnit e MockMvc.
+
+A estrutura inicial da API de movimentações também foi criada e será desenvolvida nas próximas etapas do projeto.

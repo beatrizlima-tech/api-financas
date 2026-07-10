@@ -45,6 +45,9 @@ public class CategoriaService {
         //Capturar o nome da categoria que será alterado
         categoria.setNome(request.nome());
 
+        //Validar o nome da categoria
+        validarCategoria(categoria);
+
         //Atualizar no banco de dados
         categoriaRepository.save(categoria);
 
@@ -77,13 +80,27 @@ public class CategoriaService {
                 .toList();
     }
 
+    public CategoriaResponse obterPorId(UUID id) {
+
+        //Buscar a categoria no banco de dados através do ID
+        var categoria = categoriaRepository.findById(id)
+                .orElseThrow(() -> new RegistroNaoEncontradoException("Categoria não encontrada."));
+
+        //Retornar os dados
+        return toResponse(categoria);
+    }
 
     private void validarCategoria(Categoria categoria) {
+
         if(categoria.getNome() == null || categoria.getNome().trim().isEmpty()) {
-            throw new ValidacaoException("O nome da categoria é obrigatório.");
+            throw new ValidacaoException(
+                    "O nome da categoria é obrigatório."
+            );
         }
         if(categoria.getNome().length() < 6) {
-            throw new ValidacaoException("O nome da categoria deve ter pelo menos 6 caracteres.");
+            throw new ValidacaoException(
+                    "O nome da categoria deve ter pelo menos 6 caracteres."
+            );
         }
     }
 
