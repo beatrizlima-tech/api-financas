@@ -1,5 +1,10 @@
 package br.com.cotiinformatica.api_financas.controllers;
 
+import br.com.cotiinformatica.api_financas.dtos.MovimentacaoRequest;
+import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
+import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
+import br.com.cotiinformatica.api_financas.services.MovimentacaoService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -7,30 +12,41 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/movimentacoes")
 public class MovimentacaoController {
 
-    @PostMapping("criar")
-    public ResponseEntity<?> criar() {
+    @Autowired
+    private MovimentacaoService movimentacaoService;
 
-        return ResponseEntity.ok().build();
+    @PostMapping("/criar")
+    public ResponseEntity<?> criar(@RequestBody MovimentacaoRequest request) {
+        try {
+            var response = movimentacaoService.criar(request);
+
+            return ResponseEntity.status(201).body(response);
+        }
+        catch (ValidacaoException e) {
+            return ResponseEntity.status(400).body(e.getMessage());
+        }
+        catch (RegistroNaoEncontradoException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
     }
 
-    @PutMapping("alterar")
+    @PutMapping("/alterar")
     public ResponseEntity<?> alterar() {
         return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping("excluir")
+    @DeleteMapping("/excluir")
     public ResponseEntity<?> excluir() {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("consultar")
+    @GetMapping("/consultar")
     public ResponseEntity<?> consultar() {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("obter")
+    @GetMapping("/obter")
     public ResponseEntity<?> obter() {
         return ResponseEntity.ok().build();
     }
-
 }

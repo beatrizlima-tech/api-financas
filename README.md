@@ -12,128 +12,214 @@
 
 ---
 
-# 📌 Sobre o projeto
+## 📌 Sobre o projeto
 
 A **API Finanças** é uma aplicação backend desenvolvida em **Java** com **Spring Boot**, destinada ao gerenciamento de finanças pessoais.
 
-O sistema permitirá organizar receitas e despesas por categorias, utilizando uma arquitetura REST, persistência com PostgreSQL e recursos modernos do ecossistema Spring.
+O sistema permitirá organizar receitas e despesas por categorias, consultar movimentações financeiras e acompanhar informações importantes para o controle financeiro do usuário.
 
-O projeto está sendo desenvolvido com foco em boas práticas, organização em camadas, separação de responsabilidades, uso de DTOs, documentação da API, tratamento de exceções e testes automatizados.
+O projeto utiliza arquitetura REST, persistência de dados com PostgreSQL e recursos modernos do ecossistema Spring.
+
+O desenvolvimento está sendo realizado com foco em:
+
+* organização em camadas;
+* separação de responsabilidades;
+* utilização de DTOs;
+* aplicação de regras de negócio;
+* validação de dados;
+* tratamento de exceções;
+* documentação com Swagger/OpenAPI;
+* persistência com Spring Data JPA;
+* testes automatizados;
+* boas práticas de desenvolvimento backend.
 
 ---
 
-# 🚀 Tecnologias
+## 🚀 Tecnologias utilizadas
 
 * Java 21
 * Spring Boot 4
+* Spring Web
 * Spring Data JPA
 * Hibernate
 * PostgreSQL
 * RabbitMQ
 * Docker
+* Docker Compose
 * Swagger/OpenAPI
 * Maven
 * JUnit
 * MockMvc
+* ObjectMapper
 
 ---
 
-# 📂 Estrutura do projeto
+## 📂 Estrutura do projeto
 
-O projeto segue uma organização em camadas, separando responsabilidades para facilitar a manutenção, os testes e a evolução da aplicação.
+O projeto segue uma organização em camadas, separando as responsabilidades para facilitar a manutenção, os testes e a evolução da aplicação.
 
-* **Entities**: classes que representam as tabelas do banco de dados.
-* **Repositories**: interfaces responsáveis pela comunicação com o banco de dados.
-* **Controllers**: classes responsáveis por disponibilizar os endpoints da API.
-* **Services**: classes responsáveis pelas regras de negócio.
-* **DTOs**: objetos utilizados para entrada e saída de dados da API.
-* **Exceptions**: classes responsáveis por representar erros de validação e registros não encontrados.
-* **Configurations**: classes de configuração do projeto, como Swagger e ObjectMapper.
-* **Security**: camada prevista para autenticação e proteção dos endpoints.
+### Controllers
+
+Classes responsáveis por disponibilizar os endpoints REST da aplicação, receber as requisições HTTP e retornar as respostas adequadas.
+
+### Services
+
+Classes responsáveis pelas regras de negócio, validações e comunicação entre os controllers e os repositories.
+
+### Repositories
+
+Interfaces responsáveis pela comunicação com o banco de dados utilizando Spring Data JPA.
+
+### Entities
+
+Classes que representam as tabelas e os relacionamentos existentes no banco de dados.
+
+### DTOs
+
+Objetos utilizados para transportar os dados de entrada e saída da API sem expor diretamente as entidades.
+
+### Exceptions
+
+Classes responsáveis por representar erros de validação e situações em que registros não são encontrados.
+
+### Enums
+
+Classes responsáveis por representar conjuntos fixos de valores utilizados pela aplicação, como os tipos de movimentação financeira.
+
+### Configurations
+
+Classes responsáveis pelas configurações gerais do projeto, como Swagger/OpenAPI e ObjectMapper.
+
+### Security
+
+Camada prevista para a futura implementação da autenticação dos usuários e proteção dos endpoints.
 
 ---
 
-# ✨ Funcionalidades previstas
+## ✨ Funcionalidades previstas
 
 * Cadastro de usuários
 * Autenticação com JWT
 * Cadastro de categorias
 * Cadastro de receitas
 * Cadastro de despesas
+* Alteração de movimentações
+* Exclusão de movimentações
 * Consulta de movimentações
-* Filtros por categoria e período
+* Consulta por período
+* Filtros por categoria
+* Paginação dos resultados
 * Dashboard financeiro
+* Relatórios financeiros
 * Documentação da API com Swagger
-* Testes automatizados da API
+* Testes automatizados da aplicação
 
 ---
 
-# ✅ Funcionalidades implementadas
+## ✅ Funcionalidades implementadas
 
-## 🧩 CRUD de categorias
+### 🧩 CRUD de categorias
 
-Foi desenvolvido o fluxo de gerenciamento de categorias financeiras, permitindo cadastrar, alterar, excluir, consultar e obter categorias por identificador.
+Foi desenvolvido o fluxo completo de gerenciamento de categorias financeiras.
 
-As categorias poderão ser utilizadas posteriormente para organizar as receitas e despesas cadastradas no sistema.
+A API permite cadastrar, alterar, excluir, consultar e obter categorias por identificador.
+
+As categorias poderão ser vinculadas às movimentações financeiras para organizar receitas e despesas.
 
 A implementação contempla:
 
-* Criação do endpoint para cadastro de categorias.
-* Criação do endpoint para alteração de categorias.
-* Criação do endpoint para exclusão de categorias.
-* Criação do endpoint para consulta de todas as categorias.
-* Criação do endpoint para obtenção de categoria por ID.
-* Criação dos DTOs `CategoriaRequest` e `CategoriaResponse`.
-* Desenvolvimento do serviço `CategoriaService`.
-* Integração com o repositório `CategoriaRepository`.
-* Retorno das categorias contendo `id` e `nome`.
-* Criação da exceção `ValidacaoException`.
-* Criação da exceção `RegistroNaoEncontradoException`.
-* Validação do nome durante o cadastro e a alteração de categorias.
-* Tratamento de erro para dados inválidos.
-* Tratamento de erro para categoria não encontrada.
-* Configuração do `ObjectMapper`.
-* Configuração da documentação da API com Swagger/OpenAPI.
-* Desenvolvimento de testes automatizados com JUnit e MockMvc.
-* Configuração de um perfil específico para o ambiente de testes.
+* endpoint para cadastro de categorias;
+* endpoint para alteração de categorias;
+* endpoint para exclusão de categorias;
+* endpoint para consulta de todas as categorias;
+* endpoint para obtenção de categoria por ID;
+* criação do DTO `CategoriaRequest`;
+* criação do DTO `CategoriaResponse`;
+* desenvolvimento do serviço `CategoriaService`;
+* integração com o repositório `CategoriaRepository`;
+* retorno das categorias contendo `id` e `nome`;
+* validação do nome durante o cadastro;
+* validação do nome durante a alteração;
+* criação da exceção `ValidacaoException`;
+* criação da exceção `RegistroNaoEncontradoException`;
+* tratamento de dados inválidos;
+* tratamento de categoria não encontrada;
+* configuração do ObjectMapper;
+* configuração da documentação com Swagger/OpenAPI;
+* desenvolvimento de testes automatizados;
+* configuração de um perfil específico para o ambiente de testes.
 
 ---
 
-# 🚧 Funcionalidades em desenvolvimento
+### 💸 Cadastro de movimentações
 
-## 💸 API de movimentações
+Foi implementado o fluxo inicial de cadastro de movimentações financeiras.
 
-Foi iniciada a construção da API responsável pelo gerenciamento das movimentações financeiras.
+A aplicação permite cadastrar uma receita ou despesa e associá-la a uma categoria previamente cadastrada no banco de dados.
 
-Nesta etapa, foi criada a estrutura inicial do `MovimentacaoController`, com o mapeamento base:
+A implementação contempla:
 
-```http
-/api/v1/movimentacoes
+* criação do endpoint para cadastro de movimentações;
+* criação do DTO `MovimentacaoRequest`;
+* criação do DTO `MovimentacaoResponse`;
+* desenvolvimento inicial do serviço `MovimentacaoService`;
+* integração com o repositório `MovimentacaoRepository`;
+* associação entre movimentação e categoria;
+* validação do nome da movimentação;
+* validação da data da movimentação;
+* validação do valor da movimentação;
+* validação do tipo da movimentação;
+* validação do identificador da categoria;
+* verificação da existência da categoria;
+* conversão do valor recebido para `BigDecimal` antes da persistência;
+* persistência da movimentação no banco de dados;
+* conversão da entidade para o DTO de resposta;
+* tratamento de dados inválidos;
+* tratamento de categoria não encontrada;
+* criação de consulta JPQL por intervalo de datas;
+* preparação do repository para paginação.
+
+Os tipos de movimentação aceitos são:
+
+```text
+RECEITA
+DESPESA
 ```
 
-O controller possui estruturas iniciais para as seguintes operações:
+---
 
-* Cadastro de movimentações.
-* Alteração de movimentações.
-* Exclusão de movimentações.
-* Consulta de movimentações.
-* Obtenção de movimentação.
+## 🚧 Funcionalidades em desenvolvimento
 
-As regras de negócio, os DTOs, as validações, a integração com o repositório e as respostas definitivas dos endpoints serão implementados nas próximas etapas do projeto.
+### 💸 API de movimentações
+
+O cadastro de movimentações já está implementado.
+
+As seguintes operações ainda estão em desenvolvimento:
+
+* alteração de movimentações;
+* exclusão de movimentações;
+* consulta de movimentações;
+* obtenção de movimentação por identificador;
+* consulta por intervalo de datas;
+* paginação dos resultados;
+* filtros por categoria;
+* testes automatizados para movimentações.
+
+Os métodos correspondentes a algumas dessas operações já possuem estruturas iniciais no `MovimentacaoController`, mas ainda não possuem implementação definitiva no service.
 
 ---
 
-# 📡 Endpoints
+## 📡 Endpoints
 
-## Categorias
+### Categorias
 
-### Criar categoria
+#### Criar categoria
 
 ```http
 POST /api/v1/categorias/criar
 ```
 
-#### Exemplo de requisição
+Exemplo de requisição:
 
 ```json
 {
@@ -141,7 +227,7 @@ POST /api/v1/categorias/criar
 }
 ```
 
-#### Exemplo de resposta
+Exemplo de resposta:
 
 ```json
 {
@@ -150,13 +236,13 @@ POST /api/v1/categorias/criar
 }
 ```
 
-#### Resposta esperada
+Resposta esperada:
 
 ```http
 201 Created
 ```
 
-#### Possíveis erros
+Possíveis erros:
 
 ```http
 400 Bad Request
@@ -174,13 +260,13 @@ O nome da categoria deve ter pelo menos 6 caracteres.
 
 ---
 
-### Alterar categoria
+#### Alterar categoria
 
 ```http
 PUT /api/v1/categorias/alterar/{id}
 ```
 
-#### Exemplo de requisição
+Exemplo de requisição:
 
 ```json
 {
@@ -188,7 +274,7 @@ PUT /api/v1/categorias/alterar/{id}
 }
 ```
 
-#### Exemplo de resposta
+Exemplo de resposta:
 
 ```json
 {
@@ -197,13 +283,13 @@ PUT /api/v1/categorias/alterar/{id}
 }
 ```
 
-#### Resposta esperada
+Resposta esperada:
 
 ```http
 200 OK
 ```
 
-#### Possíveis erros
+Possíveis erros:
 
 ```http
 400 Bad Request
@@ -219,6 +305,8 @@ O nome da categoria é obrigatório.
 O nome da categoria deve ter pelo menos 6 caracteres.
 ```
 
+Também poderá ser retornado:
+
 ```http
 404 Not Found
 ```
@@ -231,13 +319,13 @@ Categoria não encontrada.
 
 ---
 
-### Excluir categoria
+#### Excluir categoria
 
 ```http
 DELETE /api/v1/categorias/excluir/{id}
 ```
 
-#### Exemplo de resposta
+Exemplo de resposta:
 
 ```json
 {
@@ -246,13 +334,13 @@ DELETE /api/v1/categorias/excluir/{id}
 }
 ```
 
-#### Resposta esperada
+Resposta esperada:
 
 ```http
 200 OK
 ```
 
-#### Possíveis erros
+Possíveis erros:
 
 ```http
 404 Not Found
@@ -266,13 +354,13 @@ Categoria não encontrada.
 
 ---
 
-### Consultar categorias
+#### Consultar categorias
 
 ```http
 GET /api/v1/categorias/consultar
 ```
 
-#### Exemplo de resposta
+Exemplo de resposta:
 
 ```json
 [
@@ -287,7 +375,7 @@ GET /api/v1/categorias/consultar
 ]
 ```
 
-#### Resposta esperada
+Resposta esperada:
 
 ```http
 200 OK
@@ -295,13 +383,13 @@ GET /api/v1/categorias/consultar
 
 ---
 
-### Obter categoria por ID
+#### Obter categoria por ID
 
 ```http
 GET /api/v1/categorias/obter/{id}
 ```
 
-#### Exemplo de resposta
+Exemplo de resposta:
 
 ```json
 {
@@ -310,13 +398,13 @@ GET /api/v1/categorias/obter/{id}
 }
 ```
 
-#### Resposta esperada
+Resposta esperada:
 
 ```http
 200 OK
 ```
 
-#### Possíveis erros
+Possíveis erros:
 
 ```http
 404 Not Found
@@ -330,11 +418,129 @@ Categoria não encontrada.
 
 ---
 
-# 🧪 Testes
+### Movimentações
+
+#### Criar movimentação
+
+```http
+POST /api/v1/movimentacoes/criar
+```
+
+Exemplo de requisição para uma receita:
+
+```json
+{
+  "nome": "Salário mensal",
+  "data": "2026-07-13",
+  "valor": 3500.00,
+  "tipo": "RECEITA",
+  "categoriaId": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+Exemplo de requisição para uma despesa:
+
+```json
+{
+  "nome": "Compra mensal",
+  "data": "2026-07-13",
+  "valor": 750.90,
+  "tipo": "DESPESA",
+  "categoriaId": "8b9f3a9d-3a3b-4d1a-9c2e-9f0a5a6b7c8d"
+}
+```
+
+Exemplo de resposta:
+
+```json
+{
+  "id": "f68b6327-f8eb-4743-b76f-02377ab2d401",
+  "nome": "Salário mensal",
+  "data": "2026-07-13",
+  "valor": 3500.0,
+  "tipo": "RECEITA",
+  "categoria": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "nome": "Salário"
+  }
+}
+```
+
+Resposta esperada:
+
+```http
+201 Created
+```
+
+Possíveis erros de validação:
+
+```http
+400 Bad Request
+```
+
+Exemplos de mensagens:
+
+```text
+Os dados da movimentação são obrigatórios.
+```
+
+```text
+O nome da movimentação é obrigatório.
+```
+
+```text
+O nome da movimentação deve ter pelo menos 6 caracteres.
+```
+
+```text
+A data da movimentação é obrigatória.
+```
+
+```text
+O valor da movimentação é obrigatório.
+```
+
+```text
+O valor da movimentação deve ser maior que zero.
+```
+
+```text
+O tipo da movimentação é obrigatório.
+```
+
+```text
+O tipo da movimentação deve ser RECEITA ou DESPESA.
+```
+
+```text
+A categoria da movimentação é obrigatória.
+```
+
+Também poderá ser retornado:
+
+```http
+404 Not Found
+```
+
+Exemplo de mensagem:
+
+```text
+Categoria não encontrada.
+```
+
+---
+
+## 🧪 Testes automatizados
 
 Foram implementados testes automatizados para validar os principais comportamentos da API de categorias.
 
-Os testes utilizam **JUnit**, **MockMvc**, **ObjectMapper**, o contexto do Spring Boot e um perfil específico para o ambiente de testes.
+Os testes utilizam:
+
+* JUnit;
+* MockMvc;
+* ObjectMapper;
+* contexto do Spring Boot;
+* perfil específico para o ambiente de testes.
 
 Atualmente, os testes verificam os seguintes cenários:
 
@@ -355,13 +561,15 @@ Atualmente, os testes verificam os seguintes cenários:
 * retorno `404 Not Found` ao obter uma categoria inexistente;
 * consulta da lista de categorias cadastradas.
 
-Para executar os testes no Windows, utilize:
+Os testes automatizados do módulo de movimentações serão desenvolvidos nas próximas etapas.
+
+Para executar os testes no Windows:
 
 ```bash
 .\mvnw.cmd test
 ```
 
-Ou, caso tenha o Maven instalado globalmente:
+Caso o Maven esteja instalado globalmente:
 
 ```bash
 mvn test
@@ -369,12 +577,12 @@ mvn test
 
 ---
 
-# ▶️ Como executar
+## ▶️ Como executar o projeto
 
 Clone o repositório:
 
 ```bash
-git clone <URL_DO_REPOSITORIO>
+git clone https://github.com/beatrizlima-tech/api-financas.git
 ```
 
 Acesse a pasta do projeto:
@@ -397,31 +605,74 @@ A API ficará disponível em:
 http://localhost:8083
 ```
 
-A documentação da API poderá ser acessada pelo Swagger, conforme a configuração do projeto.
+A documentação da API poderá ser acessada pelo Swagger conforme a configuração existente no projeto.
 
 ---
 
-# 🧾 Comandos Git úteis
+## 🗄️ Infraestrutura com Docker
 
-Verificar as alterações:
+O projeto utiliza Docker Compose para disponibilizar os serviços necessários para o funcionamento da aplicação.
+
+Entre os serviços configurados estão:
+
+* PostgreSQL;
+* RabbitMQ;
+* interface de gerenciamento do RabbitMQ;
+* pgAdmin.
+
+Para iniciar os containers:
+
+```bash
+docker-compose up -d
+```
+
+Para verificar os containers em execução:
+
+```bash
+docker ps
+```
+
+Para interromper os containers:
+
+```bash
+docker-compose down
+```
+
+---
+
+## 🧾 Comandos Git úteis
+
+Verificar as alterações realizadas:
 
 ```bash
 git status
 ```
 
-Adicionar as alterações:
+Adicionar todas as alterações:
 
 ```bash
 git add .
 ```
 
+Executar os testes antes do commit:
+
+```bash
+.\mvnw.cmd test
+```
+
 Criar o commit desta atualização:
 
 ```bash
-git commit -m "feat: iniciar estrutura da API de movimentações e ampliar testes de categorias"
+git commit -m "feat: implementar cadastro de movimentações financeiras"
 ```
 
-Enviar para o GitHub:
+Caso o README também seja incluído na atualização:
+
+```bash
+git commit -m "feat: implementar cadastro de movimentações e atualizar documentação"
+```
+
+Enviar as alterações para o GitHub:
 
 ```bash
 git push origin main
@@ -429,12 +680,32 @@ git push origin main
 
 ---
 
-# 📖 Status
+## 📖 Status do projeto
 
-🚧 Projeto em desenvolvimento.
+🚧 **Projeto em desenvolvimento.**
 
-Atualmente, o projeto possui o CRUD de categorias implementado, incluindo cadastro, alteração, exclusão, consulta geral e obtenção por ID.
+Atualmente, a API possui o CRUD de categorias implementado, incluindo:
 
-O módulo de categorias conta com camada de serviço, DTOs, integração com repositório, validação no cadastro e na alteração, tratamento de exceções, documentação Swagger/OpenAPI e testes automatizados com JUnit e MockMvc.
+* cadastro;
+* alteração;
+* exclusão;
+* consulta geral;
+* obtenção por identificador;
+* validações;
+* tratamento de exceções;
+* testes automatizados.
 
-A estrutura inicial da API de movimentações também foi criada e será desenvolvida nas próximas etapas do projeto.
+O módulo de movimentações possui o cadastro de receitas e despesas implementado, incluindo:
+
+* DTO de entrada;
+* DTO de saída;
+* camada de serviço;
+* validações;
+* associação com categorias;
+* persistência no banco de dados;
+* conversão da entidade para resposta;
+* tratamento de categoria não encontrada.
+
+O repositório de movimentações também possui uma consulta JPQL preparada para buscar registros por intervalo de datas e utilizar paginação.
+
+As operações de alteração, exclusão, consulta e obtenção de movimentações serão desenvolvidas nas próximas etapas do projeto.
