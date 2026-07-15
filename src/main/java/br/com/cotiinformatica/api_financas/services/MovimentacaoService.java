@@ -10,9 +10,13 @@ import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.repositories.CategoriaRepository;
 import br.com.cotiinformatica.api_financas.repositories.MovimentacaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.UUID;
 
 @Service
 public class MovimentacaoService {
@@ -28,19 +32,21 @@ public class MovimentacaoService {
      */
     public MovimentacaoResponse criar(MovimentacaoRequest request) {
 
-        // Executar as validações antes de acessar o banco de dados
+        //Executar as validações
         validarMovimentacao(request);
 
-        // Verificar se a categoria existe no banco de dados
+        //Verificar se a categoria existe no banco de dados
         var categoria = categoriaRepository.findById(request.categoriaId())
                 .orElseThrow(() ->
-                        new RegistroNaoEncontradoException("Categoria não encontrada.")
+                        new RegistroNaoEncontradoException(
+                                "Categoria não encontrada."
+                        )
                 );
 
-        // Criar um objeto da classe Movimentacao
+        //Criando um objeto da classe Movimentação
         var movimentacao = new Movimentacao();
 
-        // Preencher os dados da movimentação
+        //Preencher os dados da movimentação
         movimentacao.setNome(request.nome().trim());
         movimentacao.setData(request.data());
         movimentacao.setValor(BigDecimal.valueOf(request.valor()));
@@ -51,17 +57,149 @@ public class MovimentacaoService {
         );
         movimentacao.setCategoria(categoria);
 
-        // Salvar a movimentação no banco de dados
-        var movimentacaoSalva = movimentacaoRepository.save(movimentacao);
+        //Salvar a movimentação no banco de dados
+        movimentacaoRepository.save(movimentacao);
 
-        // Retornar os dados da movimentação cadastrada
-        return toResponse(movimentacaoSalva);
+        //Retornar os dados da movimentação cadastrada
+        return toResponse(movimentacao);
+    }
+
+    /*
+        Método para alterar uma movimentação no banco de dados
+     */
+    public MovimentacaoResponse alterar(UUID id, MovimentacaoRequest request) {
+
+        //Consultar a movimentação no banco de dados pelo ID
+        var movimentacao = movimentacaoRepository.findById(id)
+                .orElseThrow(() ->
+                        new RegistroNaoEncontradoException(
+                                "Movimentação não encontrada."
+                        )
+                );
+
+        //Executar as validações
+        validarMovimentacao(request);
+
+        //Verificar se a categoria existe no banco de dados
+        var categoria = categoriaRepository.findById(request.categoriaId())
+                .orElseThrow(() ->
+                        new RegistroNaoEncontradoException(
+                                "Categoria não encontrada."
+                        )
+                );
+
+        //Preencher os dados da movimentação
+        movimentacao.setNome(request.nome().trim());
+        movimentacao.setData(request.data());
+        movimentacao.setValor(BigDecimal.valueOf(request.valor()));
+        movimentacao.setTipo(
+                TipoMovimentacao.valueOf(
+                        request.tipo().trim().toUpperCase()
+                )
+        );
+        movimentacao.setCategoria(categoria);
+
+        //Salvar a movimentação no banco de dados
+        movimentacaoRepository.save(movimentacao);
+
+        //Retornar os dados da movimentação alterada usando o DTO
+        return toResponse(movimentacao);
+    }
+
+    /*
+        Método para excluir uma movimentação no banco de dados
+     */
+    public MovimentacaoResponse excluir(UUID id) {
+
+        //Consultar a movimentação no banco de dados pelo ID
+        var movimentacao = movimentacaoRepository.findById(id)
+                .orElseThrow(() ->
+                        new RegistroNaoEncontradoException(
+                                "Movimentação não encontrada."
+                        )
+                );
+
+        //Excluir a movimentação no banco de dados
+        movimentacaoRepository.delete(movimentacao);
+
+        //Retornar os dados da movimentação excluída
+        return toResponse(movimentacao);
+    }
+
+    /*
+        Método para consultar as movimentações por periodo de datas e com paginação
+     */
+    public Page<MovimentacaoResponse> consultar(
+            LocalDate dataInicio,
+            LocalDate dataFim,
+            int pageIndex,
+            int pageSize
+    ) {
+
+        //Validar as datas
+
+        if (dataInicio == null || dataFim == null) {
+            throw new ValidacaoException(
+                    "As datas de início e fim são obrigatórias."
+            );
+        }
+
+        if (dataInicio.isAfter(dataFim)) {
+            throw new ValidacaoException(
+                    "A data de início não pode ser maior do que a data de fim."
+            );
+        }
+
+        //Validar a paginação
+        if (pageIndex < 0) {
+            throw new ValidacaoException(
+                    "O índice da página não pode ser negativo."
+            );
+        }
+
+        if (pageSize <= 0) {
+            throw new ValidacaoException(
+                    "O tamanho da página deve ser maior que zero."
+            );
+        }
+
+        //Configurando a paginação
+        if (pageSize > 25) pageSize = 25;
+
+        var pageable = PageRequest.of(pageIndex, pageSize);
+
+        //Consultar as movimentações no banco de dados
+        var movimentacoes = movimentacaoRepository.findByData(
+                dataInicio,
+                dataFim,
+                pageable
+        );
+
+        //Retornar os dados usando o DTO
+        return movimentacoes.map(this::toResponse);
+    }
+
+    /*
+        Método para consultar uma movimentação pelo ID
+     */
+    public MovimentacaoResponse obterPorId(UUID id) {
+
+        //Consultar a movimentação pelo ID no banco de dados
+        var movimentacao = movimentacaoRepository.findById(id)
+                .orElseThrow(() ->
+                        new RegistroNaoEncontradoException(
+                                "Movimentação não encontrada."
+                        )
+                );
+
+        //Retornando os dados da movimentação
+        return toResponse(movimentacao);
     }
 
     /*
         Método para validar os dados da movimentação
      */
-    public void validarMovimentacao(MovimentacaoRequest request) {
+    private void validarMovimentacao(MovimentacaoRequest request) {
 
         if (request == null) {
             throw new ValidacaoException(
@@ -74,7 +212,6 @@ public class MovimentacaoService {
                     "O nome da movimentação é obrigatório."
             );
         }
-
         if (request.nome().trim().length() < 6) {
             throw new ValidacaoException(
                     "O nome da movimentação deve ter pelo menos 6 caracteres."
@@ -95,7 +232,7 @@ public class MovimentacaoService {
 
         if (request.valor() <= 0) {
             throw new ValidacaoException(
-                    "O valor da movimentação deve ser maior que zero."
+                    "O valor da movimentação deve ser maior do que zero."
             );
         }
 
@@ -115,15 +252,15 @@ public class MovimentacaoService {
 
         if (request.categoriaId() == null) {
             throw new ValidacaoException(
-                    "A categoria da movimentação é obrigatória."
+                    "O ID da categoria é obrigatório."
             );
         }
     }
 
     /*
-        Método para retornar os dados do DTO de resposta da movimentação
+        Método para retornar os dados no DTO de resposta
      */
-    public MovimentacaoResponse toResponse(Movimentacao movimentacao) {
+    private MovimentacaoResponse toResponse(Movimentacao movimentacao) {
         return new MovimentacaoResponse(
                 movimentacao.getId(),
                 movimentacao.getNome(),
