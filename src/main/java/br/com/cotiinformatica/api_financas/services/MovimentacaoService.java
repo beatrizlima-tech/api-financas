@@ -3,12 +3,16 @@ package br.com.cotiinformatica.api_financas.services;
 import br.com.cotiinformatica.api_financas.dtos.CategoriaResponse;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoRequest;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoResponse;
+import br.com.cotiinformatica.api_financas.dtos.RelatorioMovimentacaoRequest;
 import br.com.cotiinformatica.api_financas.entities.Movimentacao;
 import br.com.cotiinformatica.api_financas.enums.TipoMovimentacao;
 import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
 import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.repositories.CategoriaRepository;
 import br.com.cotiinformatica.api_financas.repositories.MovimentacaoRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +30,15 @@ public class MovimentacaoService {
 
     @Autowired
     private MovimentacaoRepository movimentacaoRepository;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private Queue queue;
 
     /*
         Método para criar uma movimentação no banco de dados
@@ -195,6 +208,49 @@ public class MovimentacaoService {
         //Retornando os dados da movimentação
         return toResponse(movimentacao);
     }
+
+    /*
+    Método para gerar o relatório das movimentações
+ */
+    public String gerarRelatorioMovimentacoes(LocalDate dataInicio, LocalDate dataFim) throws Exception {
+
+        //Verificar se as datas estão corretas
+        if(dataInicio == null || dataFim == null) {
+            throw new ValidacaoException(
+                    "As datas de início e fim são obrigatórias."
+            );
+        }
+
+        if(dataInicio.isAfter(dataFim)) {
+            throw new ValidacaoException(
+                    "A data de início não pode ser maior do que a data de fim."
+            );
+        }
+
+        //Consultando as movimentações no banco de dados através do ID
+        var movimentacoes = movimentacaoRepository.findByData(dataInicio, dataFim);
+
+        if(movimentacoes.isEmpty()) {
+            return "Nenhuma movimentação foi encontrada para o período de datas informado.";
+        }
+
+        //Converter a lista de movimentações em uma lista do DTO
+        var response = movimentacoes.stream().map(this::toResponse).toList();
+
+        //criando os dados que serão enviados para a mensageria
+        var relatorioMovimentacao = new RelatorioMovimentacaoRequest(
+                "usuario@email.com", //TODO pegar o email do usuário logado
+                dataInicio,
+                dataFim,
+                objectMapper.writeValueAsString(response)
+        );
+
+        //enviando os dados para a mensageria
+        rabbitTemplate.convertAndSend(queue.getName(), objectMapper.writeValueAsString(relatorioMovimentacao));
+
+        return "Sucesso! Os dados foram enviados para a fila de processamento do relatório.";
+    }
+
 
     /*
         Método para validar os dados da movimentação

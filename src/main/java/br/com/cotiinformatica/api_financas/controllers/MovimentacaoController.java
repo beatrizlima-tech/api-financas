@@ -24,9 +24,11 @@ public class MovimentacaoController {
             var response = movimentacaoService.criar(request);
 
             return ResponseEntity.status(201).body(response);
-        } catch (ValidacaoException e) {
+        }
+        catch (ValidacaoException e) {
             return ResponseEntity.status(400).body(e.getMessage());
-        } catch (RegistroNaoEncontradoException e) {
+        }
+        catch(RegistroNaoEncontradoException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }
     }
@@ -37,9 +39,11 @@ public class MovimentacaoController {
             var response = movimentacaoService.alterar(id, request);
 
             return ResponseEntity.status(200).body(response);
-        } catch (ValidacaoException e) {
+        }
+        catch (ValidacaoException e) {
             return ResponseEntity.status(400).body(e.getMessage());
-        } catch (RegistroNaoEncontradoException e) {
+        }
+        catch(RegistroNaoEncontradoException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }
     }
@@ -50,7 +54,8 @@ public class MovimentacaoController {
             var response = movimentacaoService.excluir(id);
 
             return ResponseEntity.status(200).body(response);
-        } catch (RegistroNaoEncontradoException e) {
+        }
+        catch(RegistroNaoEncontradoException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }
     }
@@ -66,7 +71,8 @@ public class MovimentacaoController {
             var response = movimentacaoService.consultar(dataInicio, dataFim, pageIndex, pageSize);
 
             return ResponseEntity.status(200).body(response);
-        } catch (ValidacaoException e) {
+        }
+        catch(ValidacaoException e) {
             return ResponseEntity.status(400).body(e.getMessage());
         }
     }
@@ -77,9 +83,21 @@ public class MovimentacaoController {
             var response = movimentacaoService.obterPorId(id);
 
             return ResponseEntity.status(200).body(response);
-        } catch (RegistroNaoEncontradoException e) {
+        }
+        catch(RegistroNaoEncontradoException e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }
     }
 
+    @PostMapping("gerar-relatorio")
+    public ResponseEntity<?> gerarRelatorio(@RequestParam LocalDate dataInicio, @RequestParam LocalDate dataFim) throws Exception{
+        try {
+            var response = movimentacaoService.gerarRelatorioMovimentacoes(dataInicio, dataFim);
+
+            return ResponseEntity.status(200).body(response);
+        }
+        catch(ValidacaoException e) {
+            return ResponseEntity.status(400).body(e.getMessage());
+        }
+    }
 }

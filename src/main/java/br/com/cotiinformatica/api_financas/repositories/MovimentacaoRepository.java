@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -16,19 +17,32 @@ public interface MovimentacaoRepository extends JpaRepository<Movimentacao, UUID
 
     /*
         Consulta para trazer uma lista de movimentações
-        baseada em uma data de início e de fim
+        baseado em uma data de inicio e de fim
         usando linguagem JPQL (Java Persistence Query Language)
      */
     @Query("""
-                SELECT m
-                FROM Movimentacao m
-                WHERE m.data BETWEEN :pDataInicio AND :pDataFim        
-            """)
+        SELECT m
+        FROM Movimentacao m
+        WHERE m.data BETWEEN :pDataInicio AND :pDataFim        
+    """)
     Page<Movimentacao> findByData(
             @Param("pDataInicio") LocalDate dataInicio,
             @Param("pDataFim") LocalDate dataFim,
             Pageable paginacao
     );
+
+    /*
+        Consulta para retornar as movimentações dentro
+        de um periodo de datas selecionado
+     */
+    @Query("""
+        SELECT m
+        FROM Movimentacao m
+        WHERE m.data BETWEEN :pDataInicio AND :pDataFim
+        ORDER BY m.data DESC
+    """)
+    List<Movimentacao> findByData(
+            @Param("pDataInicio") LocalDate dataInicio,
+            @Param("pDataFim") LocalDate dataFim
+    );
 }
-
-

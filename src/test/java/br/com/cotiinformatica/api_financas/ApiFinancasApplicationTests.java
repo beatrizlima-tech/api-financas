@@ -18,7 +18,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
 
+import org.mockito.Mockito;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -32,6 +40,9 @@ class ApiFinancasApplicationTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private RabbitTemplate rabbitTemplate;
 
     @Test
     @DisplayName("Deve criar uma categoria com sucesso.")
@@ -741,5 +752,105 @@ class ApiFinancasApplicationTests {
         //ASSERT (verificar o resultado do teste)
         var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
         assertTrue(jsonContent.contains("A data de início não pode ser maior do que a data de fim."));
+    }
+
+    // ============= TESTES DE GERAÇÃO DE RELATÓRIO DE MOVIMENTAÇÕES =============
+
+    @Test
+    @DisplayName("Deve gerar relatório de movimentações com sucesso.")
+    public void gerarRelatorioMovimentacoesTest() throws Exception {
+
+        //ARRANGE (Preparar os dados do teste)
+        var categoriaId = criarCategoriaTeste("Categoria Relatório");
+        var dataMovimentacao = LocalDate.of(2026, 7, 15);
+        var request = new MovimentacaoRequest(
+                "Movimentação para Relatório",
+                dataMovimentacao,
+                250.75,
+                "RECEITA",
+                categoriaId
+        );
+
+        //Criar a movimentação
+        mockMvc.perform(
+                        post("/api/v1/movimentacoes/criar")
+                                .contentType("application/json")
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+
+        //ACT (Executar o endpoint POST /api/v1/movimentacoes/gerar-relatorio)
+        var dataInicio = LocalDate.of(2026, 7, 1);
+        var dataFim = LocalDate.of(2026, 7, 31);
+        var result = mockMvc.perform(
+                        post("/api/v1/movimentacoes/gerar-relatorio")
+                                .param("dataInicio", dataInicio.toString())
+                                .param("dataFim", dataFim.toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        //ASSERT (verificar o resultado do teste)
+        var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(jsonContent.contains("Sucesso! Os dados foram enviados para a fila de processamento do relatório."));
+
+        //ASSERT: Verificar que o RabbitTemplate foi chamado uma vez
+        verify(rabbitTemplate, Mockito.times(1)).convertAndSend(
+                eq("relatorios-movimentacoes"),
+                anyString()
+        );
+    }
+
+    @Test
+    @DisplayName("Deve retornar mensagem quando não há movimentações no período.")
+    public void gerarRelatorioSemMovimentacoesTest() throws Exception {
+
+        //ARRANGE (Preparar os dados do teste)
+        var dataInicio = LocalDate.of(2020, 1, 1);
+        var dataFim = LocalDate.of(2020, 1, 31);
+
+        //ACT (Executar o endpoint POST /api/v1/movimentacoes/gerar-relatorio)
+        var result = mockMvc.perform(
+                        post("/api/v1/movimentacoes/gerar-relatorio")
+                                .param("dataInicio", dataInicio.toString())
+                                .param("dataFim", dataFim.toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        //ASSERT (verificar o resultado do teste)
+        var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertTrue(jsonContent.contains("Nenhuma movimentação foi encontrada para o período de datas informado."));
+
+        //ASSERT: Verificar que o RabbitTemplate não foi chamado
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("Deve retornar erro quando o período de datas é inválido.")
+    public void gerarRelatorioComPeriodoInvalidoTest() throws Exception {
+
+        //ARRANGE: limpar chamadas feitas ao mock em outros testes
+        Mockito.clearInvocations(rabbitTemplate);
+
+        var dataInicio = LocalDate.of(2026, 7, 31);
+        var dataFim = LocalDate.of(2026, 7, 1);
+
+        //ACT (Executar o endpoint POST /api/v1/movimentacoes/gerar-relatorio)
+        var result = mockMvc.perform(
+                        post("/api/v1/movimentacoes/gerar-relatorio")
+                                .param("dataInicio", dataInicio.toString())
+                                .param("dataFim", dataFim.toString()))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        //ASSERT (verificar o resultado do teste)
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains(
+                "A data de início não pode ser maior do que a data de fim."
+        ));
+
+        //ASSERT: nenhuma mensagem foi enviada durante este teste
+        verify(rabbitTemplate, never())
+                .convertAndSend(anyString(), anyString());
     }
 }

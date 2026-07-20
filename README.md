@@ -1,14 +1,14 @@
 # 💰 API Finanças
 
-![Java](https://img.shields.io/badge/Java-25-red?style=for-the-badge&logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-green?style=for-the-badge&logo=springboot)
+![Java](https://img.shields.io/badge/Java-25-red?style=for-the-badge\&logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-green?style=for-the-badge\&logo=springboot)
 ![Spring Data JPA](https://img.shields.io/badge/Spring%20Data-JPA-success?style=for-the-badge)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue?style=for-the-badge&logo=postgresql)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue?style=for-the-badge\&logo=postgresql)
 ![H2](https://img.shields.io/badge/H2-Test%20Database-09476B?style=for-the-badge)
-![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-orange?style=for-the-badge&logo=rabbitmq)
-![Docker](https://img.shields.io/badge/Docker-Containers-2496ED?style=for-the-badge&logo=docker)
-![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?style=for-the-badge&logo=swagger)
-![JUnit](https://img.shields.io/badge/JUnit-Tests-25A162?style=for-the-badge&logo=junit5)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-orange?style=for-the-badge\&logo=rabbitmq)
+![Docker](https://img.shields.io/badge/Docker-Containers-2496ED?style=for-the-badge\&logo=docker)
+![Swagger](https://img.shields.io/badge/Swagger-OpenAPI-85EA2D?style=for-the-badge\&logo=swagger)
+![JUnit](https://img.shields.io/badge/JUnit-27%20Tests-25A162?style=for-the-badge\&logo=junit5)
 
 ---
 
@@ -16,44 +16,48 @@
 
 A **API Finanças** é uma aplicação backend desenvolvida em **Java** com **Spring Boot** para o gerenciamento de finanças pessoais.
 
-A API permite organizar receitas e despesas por categorias, executar o CRUD de categorias e movimentações e consultar movimentações por intervalo de datas com paginação.
+A API permite organizar receitas e despesas por categorias, executar o CRUD de categorias e movimentações, consultar movimentações por intervalo de datas com paginação e solicitar o processamento assíncrono de relatórios financeiros utilizando RabbitMQ.
 
-O projeto utiliza arquitetura REST, persistência com PostgreSQL, testes automatizados com banco H2 em memória e recursos do ecossistema Spring.
+O projeto utiliza arquitetura REST, persistência com PostgreSQL, mensageria com RabbitMQ, testes automatizados com banco H2 em memória e recursos do ecossistema Spring.
 
 O desenvolvimento foi realizado com foco em:
 
-- organização em camadas;
-- separação de responsabilidades;
-- utilização de DTOs;
-- aplicação de regras de negócio;
-- validação de dados;
-- tratamento de exceções;
-- documentação com Swagger/OpenAPI;
-- persistência com Spring Data JPA;
-- consultas JPQL;
-- paginação;
-- testes automatizados.
+* organização em camadas;
+* separação de responsabilidades;
+* utilização de DTOs;
+* aplicação de regras de negócio;
+* validação de dados;
+* tratamento de exceções;
+* documentação com Swagger/OpenAPI;
+* persistência com Spring Data JPA;
+* consultas JPQL;
+* paginação;
+* mensageria assíncrona;
+* serialização de dados com Jackson;
+* testes automatizados.
 
 ---
 
 ## 🚀 Tecnologias utilizadas
 
-- Java 25
-- Spring Boot 4.1.0
-- Spring Web MVC
-- Spring Data JPA
-- Hibernate
-- PostgreSQL
-- H2 Database para testes
-- RabbitMQ
-- Docker
-- Docker Compose
-- Swagger/OpenAPI
-- Maven
-- JUnit
-- MockMvc
-- Jackson ObjectMapper
-- Lombok
+* Java 25
+* Spring Boot 4.1.0
+* Spring Web MVC
+* Spring Data JPA
+* Spring AMQP
+* Hibernate
+* PostgreSQL
+* H2 Database
+* RabbitMQ
+* Docker
+* Docker Compose
+* Swagger/OpenAPI
+* Maven
+* JUnit
+* MockMvc
+* Mockito
+* Jackson ObjectMapper
+* Lombok
 
 ---
 
@@ -67,19 +71,23 @@ Responsáveis por disponibilizar os endpoints REST, receber as requisições HTT
 
 ### Services
 
-Responsáveis pelas regras de negócio, validações e comunicação entre os controllers e os repositories.
+Responsáveis pelas regras de negócio, validações e comunicação entre controllers, repositories e serviços de mensageria.
+
+O `MovimentacaoService` também prepara e publica as solicitações de relatórios no RabbitMQ.
+
+O `WorkerService` atua como consumidor da fila, recebendo as mensagens publicadas para o processamento dos relatórios.
 
 ### Repositories
 
-Responsáveis pela comunicação com o banco de dados por meio do Spring Data JPA.
+Responsáveis pela comunicação com o banco de dados por meio do Spring Data JPA e das consultas JPQL.
 
 ### Entities
 
-Representam as tabelas e os relacionamentos existentes no banco de dados.
+Representam as tabelas, os atributos e os relacionamentos existentes no banco de dados.
 
 ### DTOs
 
-Transportam os dados de entrada e saída da API sem expor diretamente as entidades.
+Transportam os dados de entrada, saída e mensageria sem expor diretamente as entidades da aplicação.
 
 ### Exceptions
 
@@ -95,7 +103,7 @@ Representam conjuntos fixos de valores, como os tipos de movimentação financei
 
 ### Configurations
 
-Contêm configurações gerais do projeto, como Swagger/OpenAPI e ObjectMapper.
+Contêm as configurações do Swagger/OpenAPI, Jackson ObjectMapper e RabbitMQ.
 
 ---
 
@@ -103,67 +111,94 @@ Contêm configurações gerais do projeto, como Swagger/OpenAPI e ObjectMapper.
 
 ### 🧩 CRUD de categorias
 
-- cadastro de categoria;
-- alteração de categoria;
-- exclusão de categoria;
-- consulta de todas as categorias;
-- obtenção de categoria por identificador;
-- validação de dados obrigatórios;
-- validação de nome obrigatório;
-- validação de nome com no mínimo seis caracteres;
-- remoção de espaços extras antes da persistência;
-- tratamento de dados inválidos;
-- tratamento de categoria não encontrada;
-- conversão da entidade para `CategoriaResponse`.
+* cadastro de categoria;
+* alteração de categoria;
+* exclusão de categoria;
+* consulta de todas as categorias;
+* obtenção de categoria por identificador;
+* validação de dados obrigatórios;
+* validação de nome obrigatório;
+* validação de nome com no mínimo seis caracteres;
+* remoção de espaços extras antes da persistência;
+* tratamento de dados inválidos;
+* tratamento de categoria não encontrada;
+* conversão da entidade para `CategoriaResponse`.
 
 ### 💸 CRUD de movimentações
 
-- cadastro de receita ou despesa;
-- alteração de movimentação;
-- exclusão de movimentação;
-- obtenção de movimentação por identificador;
-- consulta por intervalo de datas;
-- paginação dos resultados;
-- limite máximo de 25 registros por página;
-- validação do índice e do tamanho da página;
-- associação entre movimentação e categoria;
-- validação de nome, data, valor, tipo e categoria;
-- normalização do tipo com remoção de espaços e conversão para letras maiúsculas;
-- verificação da existência da categoria;
-- persistência do valor monetário com `BigDecimal`;
-- conversão do valor recebido no DTO antes da persistência;
-- consulta JPQL com `BETWEEN`;
-- conversão das entidades para `MovimentacaoResponse`.
+* cadastro de receita ou despesa;
+* alteração de movimentação;
+* exclusão de movimentação;
+* obtenção de movimentação por identificador;
+* consulta por intervalo de datas;
+* paginação dos resultados;
+* limite máximo de 25 registros por página;
+* validação do índice e do tamanho da página;
+* associação entre movimentação e categoria;
+* validação de nome, data, valor, tipo e categoria;
+* normalização do tipo informado;
+* verificação da existência da categoria;
+* persistência do valor monetário com `BigDecimal`;
+* consulta JPQL utilizando `BETWEEN`;
+* ordenação das movimentações por data decrescente;
+* conversão das entidades para `MovimentacaoResponse`.
+
+### 📨 Relatórios e mensageria
+
+* solicitação de relatório por intervalo de datas;
+* validação das datas informadas;
+* validação da ordem do período;
+* consulta das movimentações destinadas ao relatório;
+* retorno específico quando não existem movimentações no período;
+* criação do DTO `RelatorioMovimentacaoRequest`;
+* conversão das movimentações para DTOs de resposta;
+* serialização dos dados para JSON;
+* publicação da solicitação no RabbitMQ;
+* utilização da fila `relatorios-movimentacoes`;
+* consumo das mensagens pelo `WorkerService`;
+* leitura e exibição do payload recebido no console;
+* suporte à serialização de `LocalDate` com `JavaTimeModule`.
+
+A geração da análise por inteligência artificial e o envio do relatório por e-mail ainda serão implementados.
+
+Atualmente, o worker recebe a mensagem da fila e exibe o conteúdo no console, representando a etapa inicial da comunicação com a futura API de agentes de inteligência artificial.
 
 ### ⚠️ Tratamento de exceções
 
-- `ValidacaoException` para regras de validação;
-- `RegistroNaoEncontradoException` para registros inexistentes;
-- tratamento de erros conhecidos nos controllers com os status adequados;
-- `GlobalExceptionHandler` para erros inesperados da aplicação;
-- `ErrorResponse` com status, mensagem e data/hora para erros internos.
-
-### 🧪 Testes automatizados
-
-- perfil específico de testes;
-- banco H2 em memória;
-- testes de integração com o contexto do Spring Boot;
-- requisições HTTP simuladas com MockMvc;
-- serialização e desserialização com ObjectMapper;
-- 24 cenários automatizados para categorias e movimentações.
+* `ValidacaoException` para regras de validação;
+* `RegistroNaoEncontradoException` para registros inexistentes;
+* tratamento de erros conhecidos nos controllers;
+* retorno dos status HTTP adequados;
+* `GlobalExceptionHandler` para erros inesperados;
+* `ErrorResponse` com status, mensagem e data/hora.
 
 ---
 
-## 🚧 Próximas funcionalidades
+## 🔄 Fluxo da solicitação de relatório
 
-- integração com o frontend;
-- cadastro de usuários;
-- autenticação com JWT;
-- proteção dos endpoints;
-- filtros por categoria;
-- dashboard financeiro;
-- relatórios financeiros;
-- evolução da mensageria com RabbitMQ.
+```text
+Cliente
+   ↓
+MovimentacaoController
+   ↓
+MovimentacaoService
+   ↓
+Validação do período
+   ↓
+Consulta das movimentações no PostgreSQL
+   ↓
+Conversão das entidades para DTOs
+   ↓
+Serialização dos dados com ObjectMapper
+   ↓
+Fila relatorios-movimentacoes no RabbitMQ
+   ↓
+WorkerService
+   ↓
+Futura integração com agente de IA e envio por e-mail
+```
+
+O processamento é assíncrono. A API publica a solicitação na fila sem precisar aguardar a geração completa do relatório.
 
 ---
 
@@ -175,9 +210,9 @@ A URL base da aplicação é:
 http://localhost:8083
 ```
 
-### Categorias
+## Categorias
 
-#### Criar categoria
+### Criar categoria
 
 ```http
 POST /api/v1/categorias/criar
@@ -222,7 +257,7 @@ O nome da categoria deve ter pelo menos 6 caracteres.
 
 ---
 
-#### Alterar categoria
+### Alterar categoria
 
 ```http
 PUT /api/v1/categorias/alterar/{id}
@@ -251,7 +286,7 @@ Possíveis erros:
 
 ---
 
-#### Excluir categoria
+### Excluir categoria
 
 ```http
 DELETE /api/v1/categorias/excluir/{id}
@@ -271,7 +306,7 @@ Possível erro:
 
 ---
 
-#### Consultar categorias
+### Consultar categorias
 
 ```http
 GET /api/v1/categorias/consultar
@@ -300,7 +335,7 @@ Status de sucesso:
 
 ---
 
-#### Obter categoria por ID
+### Obter categoria por ID
 
 ```http
 GET /api/v1/categorias/obter/{id}
@@ -320,7 +355,7 @@ Possível erro:
 
 ---
 
-### Movimentações
+## Movimentações
 
 Os tipos aceitos são:
 
@@ -335,7 +370,7 @@ As datas devem ser enviadas no padrão ISO:
 AAAA-MM-DD
 ```
 
-#### Criar movimentação
+### Criar movimentação
 
 ```http
 POST /api/v1/movimentacoes/criar
@@ -399,7 +434,7 @@ Categoria não encontrada.
 
 ---
 
-#### Alterar movimentação
+### Alterar movimentação
 
 ```http
 PUT /api/v1/movimentacoes/alterar/{id}
@@ -422,7 +457,7 @@ Possíveis erros:
 
 ---
 
-#### Excluir movimentação
+### Excluir movimentação
 
 ```http
 DELETE /api/v1/movimentacoes/excluir/{id}
@@ -442,7 +477,7 @@ Possível erro:
 
 ---
 
-#### Obter movimentação por ID
+### Obter movimentação por ID
 
 ```http
 GET /api/v1/movimentacoes/obter/{id}
@@ -462,7 +497,7 @@ Possível erro:
 
 ---
 
-#### Consultar movimentações por período
+### Consultar movimentações por período
 
 ```http
 GET /api/v1/movimentacoes/consultar
@@ -470,12 +505,12 @@ GET /api/v1/movimentacoes/consultar
 
 Parâmetros:
 
-| Parâmetro | Tipo | Obrigatório | Valor padrão |
-|---|---|---:|---:|
-| `dataInicio` | Data ISO | Sim | — |
-| `dataFim` | Data ISO | Sim | — |
-| `pageIndex` | Inteiro | Não | `0` |
-| `pageSize` | Inteiro | Não | `25` |
+| Parâmetro    | Tipo     | Obrigatório | Valor padrão |
+| ------------ | -------- | ----------: | -----------: |
+| `dataInicio` | Data ISO |         Sim |            — |
+| `dataFim`    | Data ISO |         Sim |            — |
+| `pageIndex`  | Inteiro  |         Não |          `0` |
+| `pageSize`   | Inteiro  |         Não |         `25` |
 
 Exemplo:
 
@@ -483,9 +518,9 @@ Exemplo:
 GET /api/v1/movimentacoes/consultar?dataInicio=2026-07-01&dataFim=2026-07-31&pageIndex=0&pageSize=10
 ```
 
-A consulta utiliza `BETWEEN`, portanto inclui as movimentações registradas nas datas inicial e final.
+A consulta utiliza `BETWEEN`, incluindo as movimentações registradas nas datas inicial e final.
 
-O tamanho máximo permitido é de 25 registros por página. Valores maiores são limitados automaticamente a 25.
+O tamanho máximo permitido é de 25 registros por página. Valores maiores são limitados automaticamente.
 
 Status de sucesso:
 
@@ -510,63 +545,147 @@ O tamanho da página deve ser maior que zero.
 
 ---
 
+### Solicitar relatório de movimentações
+
+```http
+POST /api/v1/movimentacoes/gerar-relatorio
+```
+
+Parâmetros:
+
+| Parâmetro    | Tipo     | Obrigatório |
+| ------------ | -------- | ----------: |
+| `dataInicio` | Data ISO |         Sim |
+| `dataFim`    | Data ISO |         Sim |
+
+Exemplo:
+
+```http
+POST /api/v1/movimentacoes/gerar-relatorio?dataInicio=2026-07-01&dataFim=2026-07-31
+```
+
+Ao receber a solicitação, a API:
+
+1. valida o intervalo informado;
+2. consulta as movimentações existentes no período;
+3. converte as entidades para DTOs de resposta;
+4. serializa os dados para JSON;
+5. cria uma solicitação de relatório;
+6. publica a mensagem na fila `relatorios-movimentacoes`;
+7. permite que o `WorkerService` consuma a mensagem de forma assíncrona.
+
+Exemplo de resposta:
+
+```text
+Sucesso! Os dados foram enviados para a fila de processamento do relatório.
+```
+
+Caso nenhuma movimentação seja encontrada:
+
+```text
+Nenhuma movimentação foi encontrada para o período de datas informado.
+```
+
+Possível mensagem de validação:
+
+```text
+A data de início não pode ser maior do que a data de fim.
+```
+
+Status de sucesso:
+
+```http
+200 OK
+```
+
+Possível erro:
+
+```http
+400 Bad Request
+```
+
+---
+
 ## 🧪 Testes automatizados
 
-A aplicação possui **24 testes automatizados** para os módulos de categorias e movimentações.
+A aplicação possui **27 testes automatizados** para os módulos de categorias, movimentações e geração de relatórios.
 
 Os testes utilizam:
 
-- JUnit;
-- MockMvc;
-- ObjectMapper;
-- contexto do Spring Boot;
-- perfil `test`;
-- banco H2 em memória.
+* JUnit 5;
+* MockMvc;
+* Mockito;
+* `@MockitoBean`;
+* ObjectMapper;
+* contexto do Spring Boot;
+* perfil `test`;
+* banco H2 em memória;
+* mock do `RabbitTemplate`;
+* desativação do listener do RabbitMQ durante os testes.
+
+O mock do `RabbitTemplate` permite validar a publicação das mensagens sem exigir uma conexão real com o RabbitMQ durante a execução da suíte.
 
 ### Categorias
 
 Os testes verificam:
 
-- criação com sucesso;
-- validação de nome obrigatório;
-- validação do tamanho mínimo do nome;
-- alteração com sucesso;
-- alteração de categoria inexistente;
-- exclusão com sucesso;
-- exclusão de categoria inexistente;
-- obtenção por ID;
-- obtenção de categoria inexistente;
-- consulta de todas as categorias.
+* criação com sucesso;
+* validação de nome obrigatório;
+* validação do tamanho mínimo do nome;
+* alteração com sucesso;
+* alteração de categoria inexistente;
+* exclusão com sucesso;
+* exclusão de categoria inexistente;
+* obtenção por ID;
+* obtenção de categoria inexistente;
+* consulta de todas as categorias.
 
 ### Movimentações
 
 Os testes verificam:
 
-- criação com sucesso;
-- validação de nome obrigatório;
-- validação do tamanho mínimo do nome;
-- validação de valor maior que zero;
-- validação do tipo;
-- validação de categoria inexistente;
-- alteração com sucesso;
-- alteração de movimentação inexistente;
-- exclusão com sucesso;
-- exclusão de movimentação inexistente;
-- obtenção por ID;
-- obtenção de movimentação inexistente;
-- consulta por período;
-- validação de intervalo de datas inválido.
+* criação com sucesso;
+* validação de nome obrigatório;
+* validação do tamanho mínimo do nome;
+* validação de valor maior que zero;
+* validação do tipo;
+* validação de categoria inexistente;
+* alteração com sucesso;
+* alteração de movimentação inexistente;
+* exclusão com sucesso;
+* exclusão de movimentação inexistente;
+* obtenção por ID;
+* obtenção de movimentação inexistente;
+* consulta por período;
+* validação de intervalo de datas inválido.
+
+### Relatórios
+
+Os testes verificam:
+
+* solicitação de relatório com sucesso;
+* publicação dos dados na fila `relatorios-movimentacoes`;
+* retorno quando não existem movimentações no período;
+* ausência de publicação no RabbitMQ quando não existem movimentações;
+* validação de intervalo de datas inválido;
+* ausência de publicação no RabbitMQ quando o período é inválido.
 
 Para executar os testes no Windows:
 
 ```bash
-.\mvnw.cmd test
+.\mvnw.cmd clean test
+```
+
+Resultado esperado:
+
+```text
+Tests run: 27, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 Caso o Maven esteja instalado globalmente:
 
 ```bash
-mvn test
+mvn clean test
 ```
 
 ---
@@ -591,9 +710,9 @@ http://localhost:8083/v3/api-docs
 
 ### Pré-requisitos
 
-- Java 25;
-- Docker Desktop;
-- Git.
+* Java 25;
+* Docker Desktop;
+* Git.
 
 ### 1. Clonar o repositório
 
@@ -610,7 +729,7 @@ cd api-financas
 ### 3. Subir a infraestrutura
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 4. Executar a aplicação
@@ -633,15 +752,15 @@ http://localhost:8083
 
 O Docker Compose disponibiliza:
 
-- PostgreSQL;
-- RabbitMQ;
-- interface de gerenciamento do RabbitMQ;
-- pgAdmin.
+* PostgreSQL na porta `5435`;
+* pgAdmin na porta `5056`;
+* RabbitMQ na porta `5672`;
+* painel de gerenciamento do RabbitMQ na porta `15672`.
 
 Iniciar os containers:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Verificar os containers:
@@ -653,8 +772,36 @@ docker ps
 Interromper os containers:
 
 ```bash
-docker-compose down
+docker compose down
 ```
+
+Painel de gerenciamento do RabbitMQ:
+
+```text
+http://localhost:15672
+```
+
+Credenciais locais:
+
+```text
+Usuário: coti
+Senha: coti
+```
+
+---
+
+## 🚧 Próximas funcionalidades
+
+* integração do `WorkerService` com a API do agente de inteligência artificial;
+* geração da análise financeira;
+* envio do relatório por e-mail;
+* integração com o frontend;
+* cadastro de usuários;
+* autenticação com JWT;
+* proteção dos endpoints;
+* filtros por categoria;
+* dashboard financeiro;
+* testes para as futuras integrações externas.
 
 ---
 
@@ -675,7 +822,7 @@ git add .
 Executar os testes:
 
 ```bash
-.\mvnw.cmd test
+.\mvnw.cmd clean test
 ```
 
 Criar um commit:
@@ -696,9 +843,13 @@ git push origin main
 
 🚧 **Projeto em desenvolvimento.**
 
-Os módulos de categorias e movimentações possuem CRUD, validações, tratamento de exceções, consulta por período, paginação e testes automatizados.
+Os módulos de categorias e movimentações possuem CRUD completo, validações, tratamento de exceções, consulta por período, paginação e testes automatizados.
 
-A próxima etapa prevista é a integração com o frontend e a evolução das funcionalidades de autenticação, dashboard, relatórios e filtros financeiros.
+O projeto também possui o fluxo inicial de processamento assíncrono de relatórios com RabbitMQ. As movimentações são consultadas por período, convertidas para JSON, publicadas em uma fila e consumidas pelo `WorkerService`.
+
+A aplicação possui atualmente **27 testes automatizados executados com sucesso**.
+
+A próxima etapa prevista é integrar o worker com a API do agente de inteligência artificial e implementar o envio dos relatórios por e-mail.
 
 ---
 

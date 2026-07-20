@@ -14,5 +14,11 @@ spring:
     show-sql: false
     database-platform: org.hibernate.dialect.H2Dialect
 
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+
 server:
   port: 8083
