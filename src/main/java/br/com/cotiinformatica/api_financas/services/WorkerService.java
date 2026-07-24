@@ -1,11 +1,17 @@
 package br.com.cotiinformatica.api_financas.services;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 @Service
 public class WorkerService {
+
+    @Autowired
+    private RestClient restClient;
 
     /*
         Método para ler e processar cada registro contido na fila
@@ -14,10 +20,16 @@ public class WorkerService {
      */
     @RabbitListener(queues = "relatorios-movimentacoes")
     public void listener(@Payload String payload) throws Exception {
-        //TODO enviar os dados da mensageria para a API do agente de IA
-        System.out.println("\n\n**********");
-        System.out.println("\n\nDADOS TRANSMITIDOS COM SUCESSO!");
-        System.out.println("\nPAYLOAD:" + payload);
-        System.out.println("\n\n**********");
+
+        var result = restClient.post()
+                .uri("http://localhost:8084/api/relatorios")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .toBodilessEntity();
+
+        System.out.println("\nTRANSMISSÂO REALIZADA COM SUCESSO!");
+        System.out.println("Status HTTP: " + result.getStatusCode());
+
     }
 }
