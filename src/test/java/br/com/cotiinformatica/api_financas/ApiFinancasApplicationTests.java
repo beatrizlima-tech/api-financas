@@ -18,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -130,7 +131,7 @@ class ApiFinancasApplicationTests {
 
         //ASSERT (verificar o resultado do teste)
         var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertTrue(jsonContent.contains("O nome da categoria deve ter pelo menos 6 caracteres."));
+        assertTrue(jsonContent.contains("O nome da categoria deve ter entre 6 e 50 caracteres."));
     }
 
     @Test
@@ -350,7 +351,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Movimentação Teste",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -382,7 +383,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -409,7 +410,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Teste",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -424,7 +425,7 @@ class ApiFinancasApplicationTests {
 
         //ASSERT (verificar o resultado do teste)
         var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertTrue(jsonContent.contains("O nome da movimentação deve ter pelo menos 6 caracteres."));
+        assertTrue(jsonContent.contains("O nome da movimentação deve ter entre 6 e 150 caracteres."));
     }
 
     @Test
@@ -436,7 +437,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Movimentação Teste",
                 LocalDate.now(),
-                0.0,
+                BigDecimal.ZERO,
                 "RECEITA",
                 categoriaId
         );
@@ -455,6 +456,36 @@ class ApiFinancasApplicationTests {
     }
 
     @Test
+    @DisplayName("Deve retornar erro se o valor tiver mais de duas casas decimais.")
+    public void validarCasasDecimaisDaMovimentacaoTest() throws Exception {
+
+        var categoriaId = criarCategoriaTeste("Categoria Movimentação");
+
+        var request = new MovimentacaoRequest(
+                "Movimentação Teste",
+                LocalDate.now(),
+                new BigDecimal("100.999"),
+                "RECEITA",
+                categoriaId
+        );
+
+        var result = mockMvc.perform(
+                post("/api/v1/movimentacoes/criar")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains(
+                "O valor da movimentação deve ter no máximo 8 dígitos inteiros e 2 casas decimais."
+        ));
+
+    }
+
+    @Test
     @DisplayName("Deve retornar erro se o tipo da movimentação for inválido.")
     public void validarTipoDaMovimentacaoTest() throws Exception {
 
@@ -463,7 +494,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Movimentação Teste",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "INVALIDO",
                 categoriaId
         );
@@ -490,7 +521,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Movimentação Teste",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaIdInexistente
         );
@@ -517,7 +548,7 @@ class ApiFinancasApplicationTests {
         var requestCriar = new MovimentacaoRequest(
                 "Movimentação Original",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -537,7 +568,7 @@ class ApiFinancasApplicationTests {
         var requestAlterar = new MovimentacaoRequest(
                 "Movimentação Alterada",
                 LocalDate.now().minusDays(1),
-                150.75,
+                new BigDecimal("100.75"),
                 "DESPESA",
                 categoriaId
         );
@@ -568,7 +599,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Movimentação Teste",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -596,7 +627,7 @@ class ApiFinancasApplicationTests {
         var requestCriar = new MovimentacaoRequest(
                 "Movimentação Para Excluir",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -653,7 +684,7 @@ class ApiFinancasApplicationTests {
         var requestCriar = new MovimentacaoRequest(
                 "Movimentação Para Consultar",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
@@ -710,14 +741,14 @@ class ApiFinancasApplicationTests {
         var request1 = new MovimentacaoRequest(
                 "Primeira Movimentação",
                 LocalDate.now(),
-                100.50,
+                new BigDecimal("100.50"),
                 "RECEITA",
                 categoriaId
         );
         var request2 = new MovimentacaoRequest(
                 "Segunda Movimentação",
                 LocalDate.now().minusDays(1),
-                50.25,
+                new BigDecimal("50.25"),
                 "DESPESA",
                 categoriaId
         );
@@ -789,7 +820,7 @@ class ApiFinancasApplicationTests {
         var request = new MovimentacaoRequest(
                 "Movimentação para Relatório",
                 dataMovimentacao,
-                250.75,
+                new BigDecimal("250.75"),
                 "RECEITA",
                 categoriaId
         );

@@ -27,6 +27,20 @@ spring:
     password: ${RABBITMQ_PASSWORD}
     virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
 
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 5s
+
+integrations:
+  agentes-ia:
+    base-url: ${AGENTES_IA_BASE_URL:http://localhost:8084}
+
 springdoc:
   api-docs:
     enabled: true

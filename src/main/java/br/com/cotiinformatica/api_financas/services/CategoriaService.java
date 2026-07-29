@@ -6,7 +6,6 @@ import br.com.cotiinformatica.api_financas.entities.Categoria;
 import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
 import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.repositories.CategoriaRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,8 +14,12 @@ import java.util.UUID;
 @Service
 public class CategoriaService {
 
-    @Autowired
-    private CategoriaRepository categoriaRepository;
+    private final CategoriaRepository categoriaRepository;
+
+    public CategoriaService(CategoriaRepository categoriaRepository) {
+
+        this.categoriaRepository = categoriaRepository;
+    }
 
     public CategoriaResponse criar(UUID usuarioId, CategoriaRequest request) {
 

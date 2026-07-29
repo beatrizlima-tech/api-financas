@@ -6,14 +6,16 @@ import br.com.cotiinformatica.api_financas.dtos.MovimentacaoResponse;
 import br.com.cotiinformatica.api_financas.dtos.RelatorioMovimentacaoRequest;
 import br.com.cotiinformatica.api_financas.entities.Movimentacao;
 import br.com.cotiinformatica.api_financas.enums.TipoMovimentacao;
+import br.com.cotiinformatica.api_financas.exceptions.ProcessamentoRelatorioException;
 import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
 import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.repositories.CategoriaRepository;
 import br.com.cotiinformatica.api_financas.repositories.MovimentacaoRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -25,24 +27,38 @@ import java.util.UUID;
 @Service
 public class MovimentacaoService {
 
-    @Autowired
-    private CategoriaRepository categoriaRepository;
+    private final CategoriaRepository categoriaRepository;
 
-    @Autowired
-    private MovimentacaoRepository movimentacaoRepository;
+    private final MovimentacaoRepository movimentacaoRepository;
 
-    @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private Queue queue;
+    private final Queue queue;
 
-    /*
-        Método para criar uma movimentação no banco de dados
-     */
+    public MovimentacaoService(
+            CategoriaRepository categoriaRepository,
+            MovimentacaoRepository movimentacaoRepository,
+            RabbitTemplate rabbitTemplate,
+            ObjectMapper objectMapper,
+            @Qualifier("relatoriosQueue") Queue queue) {
+
+        this.categoriaRepository = categoriaRepository;
+
+        this.movimentacaoRepository = movimentacaoRepository;
+
+        this.rabbitTemplate = rabbitTemplate;
+
+        this.objectMapper = objectMapper;
+
+        this.queue = queue;
+
+    }
+
+
+        // Método para criar uma movimentação no banco de dados
+
     public MovimentacaoResponse criar(UUID usuarioId, MovimentacaoRequest request) {
 
         //Executar as validações
@@ -67,7 +83,7 @@ public class MovimentacaoService {
         movimentacao.setUsuarioId(usuarioId);
         movimentacao.setNome(request.nome().trim());
         movimentacao.setData(request.data());
-        movimentacao.setValor(BigDecimal.valueOf(request.valor()));
+        movimentacao.setValor(request.valor());
         movimentacao.setTipo(
                 TipoMovimentacao.valueOf(
                         request.tipo().trim().toUpperCase()
@@ -75,8 +91,6 @@ public class MovimentacaoService {
         );
 
         movimentacao.setCategoria(categoria);
-
-        movimentacaoRepository.save(movimentacao);
 
         //Salvar a movimentação no banco de dados
         movimentacaoRepository.save(movimentacao);
@@ -113,7 +127,7 @@ public class MovimentacaoService {
         //Preencher os dados da movimentação
         movimentacao.setNome(request.nome().trim());
         movimentacao.setData(request.data());
-        movimentacao.setValor(BigDecimal.valueOf(request.valor()));
+        movimentacao.setValor(request.valor());
         movimentacao.setTipo(
                 TipoMovimentacao.valueOf(
                         request.tipo().trim().toUpperCase()
@@ -222,48 +236,49 @@ public class MovimentacaoService {
         return toResponse(movimentacao);
     }
 
-    /*
-    Método para gerar o relatório das movimentações
- */
-    public String gerarRelatorioMovimentacoes(UUID usuarioId, String email, LocalDate dataInicio, LocalDate dataFim) throws Exception {
+    // Método para gerar o relatório das movimentações
 
-        //Verificar se as datas estão corretas
-        if(dataInicio == null || dataFim == null) {
+    public String gerarRelatorioMovimentacoes(UUID usuarioId, String email, LocalDate dataInicio, LocalDate dataFim) {
+
+        if (dataInicio == null || dataFim == null) {
             throw new ValidacaoException(
                     "As datas de início e fim são obrigatórias."
             );
         }
 
-        if(dataInicio.isAfter(dataFim)) {
+        if (dataInicio.isAfter(dataFim)) {
             throw new ValidacaoException(
                     "A data de início não pode ser maior do que a data de fim."
             );
         }
 
-        //Consultando as movimentações no banco de dados através do ID
-        var movimentacoes = movimentacaoRepository.findByUsuarioIdAndData(
-                usuarioId,
-                dataInicio,
-                dataFim
-        );
+        var movimentacoes = movimentacaoRepository.findByUsuarioIdAndData(usuarioId, dataInicio, dataFim);
 
         if(movimentacoes.isEmpty()) {
             return "Nenhuma movimentação foi encontrada para o período de datas informado.";
         }
 
-        //Converter a lista de movimentações em uma lista do DTO
-        var response = movimentacoes.stream().map(this::toResponse).toList();
+        var response = movimentacoes.stream()
+                .map(this::toResponse)
+                .toList();
 
-        //criando os dados que serão enviados para a mensageria
-        var relatorioMovimentacao = new RelatorioMovimentacaoRequest(
-                email,
-                dataInicio,
-                dataFim,
-                objectMapper.writeValueAsString(response)
-        );
+        try{
+            var movimentacoesJson = objectMapper.writeValueAsString(response);
 
-        //enviando os dados para a mensageria
-        rabbitTemplate.convertAndSend(queue.getName(), objectMapper.writeValueAsString(relatorioMovimentacao));
+            var relatorioMovimentacao  = new RelatorioMovimentacaoRequest(email, dataInicio, dataFim, movimentacoesJson);
+
+            var relatorioJson = objectMapper.writeValueAsString(relatorioMovimentacao);
+
+            rabbitTemplate.convertAndSend(queue.getName(), relatorioJson);
+
+        }
+        catch (JsonProcessingException exception) {
+
+            throw new ProcessamentoRelatorioException(
+                    "Não foi possível preparar os dados do relatório.",
+                    exception
+            );
+        }
 
         return "Sucesso! Os dados foram enviados para a fila de processamento do relatório.";
     }
@@ -287,7 +302,7 @@ public class MovimentacaoService {
         }
         if (request.nome().trim().length() < 6) {
             throw new ValidacaoException(
-                    "O nome da movimentação deve ter pelo menos 6 caracteres."
+                    "O nome da movimentação deve ter entre 6 e 150 caracteres."
             );
         }
 
@@ -303,7 +318,7 @@ public class MovimentacaoService {
             );
         }
 
-        if (request.valor() <= 0) {
+        if (request.valor().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ValidacaoException(
                     "O valor da movimentação deve ser maior do que zero."
             );
@@ -338,7 +353,7 @@ public class MovimentacaoService {
                 movimentacao.getId(),
                 movimentacao.getNome(),
                 movimentacao.getData(),
-                movimentacao.getValor().doubleValue(),
+                movimentacao.getValor(),
                 movimentacao.getTipo().toString(),
                 new CategoriaResponse(
                         movimentacao.getCategoria().getId(),

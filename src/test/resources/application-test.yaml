@@ -28,6 +28,10 @@ jwt:
   issuer: api-autenticacao
   secret: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 
+integrations:
+  agentes-ia:
+    base-url: http://localhost:8084
+
 springdoc:
   api-docs:
     enabled: false

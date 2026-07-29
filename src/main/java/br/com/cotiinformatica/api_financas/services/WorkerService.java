@@ -1,35 +1,53 @@
 package br.com.cotiinformatica.api_financas.services;
 
+import br.com.cotiinformatica.api_financas.configurations.RabbitMQConfiguration;
+import br.com.cotiinformatica.api_financas.exceptions.EnvioRelatorioException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
+@Slf4j
 @Service
 public class WorkerService {
 
-    @Autowired
-    private RestClient restClient;
+    private final RestClient restClient;
 
-    /*
-        Método para ler e processar cada registro contido na fila
-        Ele deverá transmitir os dados para a API do agente de IA
-        @Payload -> dados gravados na fila
-     */
-    @RabbitListener(queues = "relatorios-movimentacoes")
-    public void listener(@Payload String payload) throws Exception {
+    public WorkerService(RestClient restClient) {
+        this.restClient = restClient;
+    }
 
-        var result = restClient.post()
-                .uri("http://localhost:8084/api/relatorios")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(payload)
-                .retrieve()
-                .toBodilessEntity();
+    @RabbitListener(queues = RabbitMQConfiguration.RELATORIOS_QUEUE)
+    public void listener(@Payload String payload) {
 
-        System.out.println("\nTRANSMISSÂO REALIZADA COM SUCESSO!");
-        System.out.println("Status HTTP: " + result.getStatusCode());
+        try {
+            var result = restClient.post()
+                    .uri("/api/relatorios")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
 
+            log.info(
+                    "Relatório enviado com sucesso. Status HTTP: {}",
+                    result.getStatusCode()
+            );
+
+        }
+        catch (RestClientException exception) {
+
+            log.error(
+                    "Falha ao enviar o relatório para a API de agentes.",
+                    exception
+            );
+
+            throw new EnvioRelatorioException(
+                    "Não foi possível enviar o relatório para processamento.",
+                    exception
+            );
+        }
     }
 }

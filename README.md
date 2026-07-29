@@ -4,30 +4,29 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-green?style=for-the-badge&logo=springboot)
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-6DB33F?style=for-the-badge&logo=springsecurity)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=for-the-badge&logo=postgresql)
-![Flyway](https://img.shields.io/badge/Flyway-Migrations-CC0200?style=for-the-badge&logo=flyway)
-![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-orange?style=for-the-badge&logo=rabbitmq)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-FF6600?style=for-the-badge&logo=rabbitmq)
 ![Docker](https://img.shields.io/badge/Docker-Containers-2496ED?style=for-the-badge&logo=docker)
-![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-35%20passing-brightgreen?style=for-the-badge)
 
-API REST para gerenciamento de finanças pessoais, protegida por JWT e integrada à API de autenticação do ecossistema Finanças.
+API REST para gerenciamento de finanças pessoais, protegida por JWT, isolada por usuário e integrada ao ecossistema de autenticação e processamento de relatórios financeiros.
 
 ---
 
 ## 📌 Sobre o projeto
 
-A **API Finanças** permite gerenciar categorias, receitas e despesas de maneira segura e isolada por usuário.
+A **API Finanças** permite que usuários autenticados gerenciem categorias, receitas e despesas de forma segura.
 
-A aplicação recebe os tokens JWT emitidos pela `api-autenticacao`, valida assinatura, emissor e expiração e utiliza o UUID público presente no `sub` do token para identificar o proprietário dos dados.
+A aplicação recebe os tokens JWT emitidos pela `api-autenticacao`, valida assinatura, emissor e expiração e utiliza o UUID público presente no claim `sub` para identificar o proprietário dos dados.
 
-Cada usuário acessa somente suas próprias categorias e movimentações. Tentativas de consultar, alterar ou excluir registros de outro usuário não expõem a existência desses dados.
+Cada usuário acessa somente suas próprias categorias e movimentações. As consultas, alterações e exclusões são sempre filtradas pelo UUID do usuário autenticado.
 
-O projeto também possui um fluxo assíncrono de solicitação de relatórios financeiros utilizando RabbitMQ.
+A API também possui um fluxo assíncrono de relatórios financeiros com RabbitMQ e integração HTTP com a `api-agentesia`.
 
 ---
 
 ## 🏗️ Arquitetura
 
-A aplicação está organizada em camadas:
+A aplicação utiliza uma arquitetura em camadas:
 
 ```text
 Controller
@@ -39,17 +38,19 @@ Repository
 PostgreSQL
 ```
 
-Componentes principais:
+Principais responsabilidades:
 
-- **Controllers:** recebem as requisições HTTP e retornam as respostas da API;
+- **Controllers:** recebem as requisições HTTP e retornam respostas tipadas;
 - **Services:** concentram regras de negócio, validações e conversões;
-- **Repositories:** realizam a persistência e as consultas com Spring Data JPA;
-- **Entities:** representam as tabelas e relacionamentos;
-- **DTOs:** transportam os dados sem expor diretamente as entidades;
-- **Components:** extraem de forma centralizada os dados do usuário autenticado;
-- **Configurations:** configuram segurança, CORS, Swagger, RabbitMQ e serialização;
-- **Handlers:** centralizam o tratamento de erros inesperados;
+- **Repositories:** realizam persistência e consultas com Spring Data JPA;
+- **Entities:** representam as tabelas do banco;
+- **DTOs:** transportam os dados sem expor as entidades;
+- **Components:** extraem os dados do usuário autenticado;
+- **Configurations:** configuram segurança, CORS, Swagger, RabbitMQ e integrações;
+- **Handlers:** centralizam erros com `ProblemDetail`;
 - **Migrations:** versionam a estrutura do banco com Flyway.
+
+A aplicação utiliza injeção de dependências por construtor.
 
 ---
 
@@ -57,33 +58,29 @@ Componentes principais:
 
 A API funciona como um **OAuth2 Resource Server** stateless.
 
-O token é emitido pela `api-autenticacao` e validado pela `api-financas` utilizando:
+O JWT é validado considerando:
 
 - assinatura HMAC SHA-256;
-- segredo JWT em Base64 com pelo menos 256 bits;
-- validação do emissor;
-- validação da expiração;
-- ausência de sessão no servidor;
+- segredo Base64 com pelo menos 256 bits;
+- emissor esperado;
+- data de expiração;
 - UUID público do usuário no claim `sub`;
-- e-mail do usuário no claim `email`;
-- perfil do usuário no claim `perfil`.
+- e-mail no claim `email`;
+- perfil no claim `perfil`;
+- ausência de sessão no servidor.
 
-O segredo e o emissor configurados nas duas APIs devem ser iguais.
+O segredo e o emissor configurados na `api-autenticacao` e na `api-financas` devem ser os mesmos.
 
-As consultas aos repositories utilizam o UUID do usuário autenticado:
+Todas as operações utilizam o UUID do usuário autenticado:
 
 ```text
 Usuário A → categorias e movimentações do usuário A
 Usuário B → categorias e movimentações do usuário B
 ```
 
-Rotas públicas:
+Tentativas de acessar registros de outro usuário retornam recurso não encontrado, sem revelar a existência do dado.
 
-- Swagger/OpenAPI;
-- health check do Actuator;
-- requisições CORS `OPTIONS`.
-
-As demais rotas exigem:
+As rotas protegidas exigem:
 
 ```http
 Authorization: Bearer <accessToken>
@@ -98,9 +95,9 @@ Authorization: Bearer <accessToken>
 - cadastrar categoria;
 - alterar categoria;
 - excluir categoria;
-- consultar categorias do usuário autenticado;
+- consultar categorias;
 - obter categoria por UUID;
-- validar nome obrigatório e tamanho mínimo;
+- validar nome obrigatório e tamanho;
 - normalizar espaços;
 - impedir acesso a categorias de outro usuário.
 
@@ -114,22 +111,70 @@ Authorization: Bearer <accessToken>
 - paginar os resultados;
 - limitar o tamanho da página;
 - ordenar por data decrescente;
-- persistir valores monetários com `BigDecimal`;
-- associar movimentações às categorias;
+- utilizar `BigDecimal` para valores monetários;
+- aceitar no máximo duas casas decimais;
+- associar movimentações a categorias;
 - validar se a categoria pertence ao usuário autenticado;
 - impedir acesso a movimentações de outro usuário.
 
-### Relatórios e RabbitMQ
+### Erros HTTP
 
-- consultar movimentações por período;
-- montar a solicitação de relatório;
-- incluir o e-mail do usuário autenticado;
-- serializar os dados em JSON;
-- publicar mensagens no RabbitMQ;
-- consumir mensagens por meio do `WorkerService`;
-- utilizar a fila `relatorios-movimentacoes`.
+As respostas de erro utilizam o padrão `ProblemDetail`:
 
-A geração da análise financeira por inteligência artificial e o envio do relatório por e-mail serão implementados na integração com a `api-agentesia`.
+- `400 Bad Request` para dados inválidos;
+- `401 Unauthorized` para autenticação ausente ou inválida;
+- `404 Not Found` para recursos não encontrados;
+- `500 Internal Server Error` para falhas inesperadas.
+
+As mensagens de validação são agrupadas por campo.
+
+---
+
+## 📨 Relatórios e RabbitMQ
+
+O fluxo de relatório é assíncrono:
+
+```text
+Cliente autenticado
+        ↓
+MovimentacaoController
+        ↓
+MovimentacaoService
+        ↓
+Consulta das movimentações do usuário
+        ↓
+Serialização com Jackson
+        ↓
+RabbitMQ
+        ↓
+Fila relatorios-movimentacoes
+        ↓
+WorkerService
+        ↓
+API Agentes IA
+```
+
+O worker utiliza um `RestClient` cuja URL-base é configurável pela variável:
+
+```text
+AGENTES_IA_BASE_URL
+```
+
+Em caso de falha na API de agentes:
+
+1. o erro é registrado no log;
+2. o RabbitMQ realiza até três tentativas;
+3. o intervalo entre tentativas aumenta gradualmente;
+4. após esgotar as tentativas, a mensagem é encaminhada para a DLQ.
+
+Filas utilizadas:
+
+```text
+relatorios-movimentacoes
+relatorios-movimentacoes.dlq
+```
+
+A DLQ preserva mensagens que não puderam ser processadas para análise posterior.
 
 ---
 
@@ -146,7 +191,7 @@ api-financas
    ↓
 Validação da assinatura, emissor e expiração
    ↓
-UUID do usuário extraído do claim sub
+UUID extraído do claim sub
    ↓
 Consultas filtradas por usuario_id
 ```
@@ -165,10 +210,13 @@ A `api-financas` não armazena senhas e não realiza login. Essas responsabilida
 - JWT;
 - Spring Data JPA;
 - Hibernate;
+- Bean Validation;
 - PostgreSQL 16;
 - Flyway;
 - Spring AMQP;
 - RabbitMQ;
+- RestClient;
+- Jackson;
 - H2 Database;
 - Docker;
 - Docker Compose;
@@ -178,14 +226,14 @@ A `api-financas` não armazena senhas e não realiza login. Essas responsabilida
 - JUnit;
 - MockMvc;
 - Mockito;
-- Jackson;
+- MockRestServiceServer;
 - Lombok.
 
 ---
 
 ## 🗄️ Banco de dados e Flyway
 
-O Flyway gerencia a evolução do banco por meio de migrações versionadas:
+O Flyway gerencia a evolução do banco por meio de migrations:
 
 ```text
 src/main/resources/db/migration/
@@ -194,10 +242,11 @@ src/main/resources/db/migration/
 └── V3__make_user_ownership_required.sql
 ```
 
-As migrações atuais:
+As migrations:
 
 - criam as tabelas de categorias e movimentações;
-- adicionam `usuario_id`;
+- utilizam UUIDs como identificadores;
+- adicionam o campo `usuario_id`;
 - criam índices para consultas por usuário;
 - tornam o proprietário obrigatório;
 - preservam a integridade dos dados.
@@ -208,7 +257,7 @@ O Hibernate utiliza:
 ddl-auto: validate
 ```
 
-Assim, o Hibernate valida as entidades, enquanto o Flyway controla as alterações estruturais do banco.
+Dessa forma, o Hibernate valida as entidades e o Flyway controla as alterações estruturais.
 
 ---
 
@@ -220,19 +269,17 @@ URL local:
 http://localhost:8083
 ```
 
-Todos os endpoints abaixo exigem um token JWT válido.
-
 ### Categorias
 
-| Método   | Endpoint                                | Descrição              |
-|----------|-----------------------------------------|------------------------|
-| `POST`   | `/api/v1/categorias/criar`              | Cadastra uma categoria |
-| `PUT`    | `/api/v1/categorias/alterar/{id}`       | Altera uma categoria   |
-| `DELETE` | `/api/v1/categorias/excluir/{id}`       | Exclui uma categoria   |
-| `GET`    | `/api/v1/categorias/consultar`          | Consulta as categorias |
-| `GET`    | `/api/v1/categorias/obter/{id}`         | Obtém uma categoria    |
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/v1/categorias/criar` | Cadastra uma categoria |
+| `PUT` | `/api/v1/categorias/alterar/{id}` | Altera uma categoria |
+| `DELETE` | `/api/v1/categorias/excluir/{id}` | Exclui uma categoria |
+| `GET` | `/api/v1/categorias/consultar` | Consulta as categorias |
+| `GET` | `/api/v1/categorias/obter/{id}` | Obtém uma categoria |
 
-Exemplo de cadastro:
+Exemplo:
 
 ```json
 {
@@ -240,7 +287,7 @@ Exemplo de cadastro:
 }
 ```
 
-Exemplo de resposta:
+Resposta:
 
 ```json
 {
@@ -251,14 +298,14 @@ Exemplo de resposta:
 
 ### Movimentações
 
-| Método   | Endpoint                                    | Descrição                         |
-|----------|---------------------------------------------|-----------------------------------|
-| `POST`   | `/api/v1/movimentacoes/criar`               | Cadastra uma movimentação         |
-| `PUT`    | `/api/v1/movimentacoes/alterar/{id}`        | Altera uma movimentação           |
-| `DELETE` | `/api/v1/movimentacoes/excluir/{id}`        | Exclui uma movimentação           |
-| `GET`    | `/api/v1/movimentacoes/consultar`           | Consulta movimentações por período |
-| `GET`    | `/api/v1/movimentacoes/obter/{id}`          | Obtém uma movimentação            |
-| `POST`   | `/api/v1/movimentacoes/gerar-relatorio`     | Solicita um relatório assíncrono  |
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/v1/movimentacoes/criar` | Cadastra uma movimentação |
+| `PUT` | `/api/v1/movimentacoes/alterar/{id}` | Altera uma movimentação |
+| `DELETE` | `/api/v1/movimentacoes/excluir/{id}` | Exclui uma movimentação |
+| `GET` | `/api/v1/movimentacoes/consultar` | Consulta por período |
+| `GET` | `/api/v1/movimentacoes/obter/{id}` | Obtém uma movimentação |
+| `POST` | `/api/v1/movimentacoes/gerar-relatorio` | Solicita um relatório assíncrono |
 
 Tipos aceitos:
 
@@ -267,7 +314,7 @@ RECEITA
 DESPESA
 ```
 
-Exemplo de cadastro:
+Exemplo:
 
 ```json
 {
@@ -285,14 +332,12 @@ Exemplo de cadastro:
 GET /api/v1/movimentacoes/consultar
 ```
 
-Parâmetros:
-
-| Parâmetro    | Tipo     | Obrigatório | Padrão |
-|--------------|----------|-------------|--------|
-| `dataInicio` | Data ISO | Sim         | —      |
-| `dataFim`    | Data ISO | Sim         | —      |
-| `pageIndex`  | Inteiro  | Não         | `0`    |
-| `pageSize`   | Inteiro  | Não         | `25`   |
+| Parâmetro | Tipo | Obrigatório | Padrão |
+|---|---|---|---|
+| `dataInicio` | Data ISO | Sim | — |
+| `dataFim` | Data ISO | Sim | — |
+| `pageIndex` | Inteiro | Não | `0` |
+| `pageSize` | Inteiro | Não | `25` |
 
 Exemplo:
 
@@ -302,39 +347,9 @@ GET /api/v1/movimentacoes/consultar?dataInicio=2026-07-01&dataFim=2026-07-31&pag
 
 ---
 
-## 📨 Fluxo de relatório
-
-```text
-Cliente autenticado
-   ↓
-MovimentacaoController
-   ↓
-UUID e e-mail extraídos do JWT
-   ↓
-MovimentacaoService
-   ↓
-Movimentações filtradas pelo usuário e período
-   ↓
-Serialização com Jackson
-   ↓
-RabbitMQ
-   ↓
-Fila relatorios-movimentacoes
-   ↓
-WorkerService
-   ↓
-Futura integração com a api-agentesia
-```
-
-O processamento é assíncrono: a API publica a solicitação e não precisa aguardar a geração completa do relatório.
-
----
-
 ## ⚙️ Configuração local
 
-A aplicação utiliza o arquivo `.env.properties` para os segredos locais.
-
-Crie o arquivo na raiz do projeto:
+Crie na raiz do projeto:
 
 ```text
 .env.properties
@@ -348,24 +363,25 @@ RABBITMQ_PASSWORD=coti
 JWT_SECRET=COLE_AQUI_A_MESMA_CHAVE_BASE64_DA_API_AUTENTICACAO
 ```
 
-O arquivo está incluído no `.gitignore` e não deve ser enviado ao GitHub.
+Esse arquivo está no `.gitignore` e não deve ser enviado ao GitHub.
 
-Variáveis disponíveis:
+### Variáveis de ambiente
 
-| Variável                    | Descrição                               | Padrão local |
-|-----------------------------|-----------------------------------------|--------------|
-| `DB_URL`                    | URL do PostgreSQL                       | `jdbc:postgresql://localhost:5435/bd-api-financas` |
-| `DB_USER`                   | Usuário do PostgreSQL                   | `coti` |
-| `DB_PASSWORD`               | Senha do PostgreSQL                     | obrigatório |
-| `JWT_SECRET`                | Chave Base64 compartilhada              | obrigatório |
-| `JWT_ISSUER`                | Emissor esperado no token               | `api-autenticacao` |
-| `RABBITMQ_HOST`             | Host do RabbitMQ                        | `localhost` |
-| `RABBITMQ_PORT`             | Porta do RabbitMQ                       | `5672` |
-| `RABBITMQ_USER`             | Usuário do RabbitMQ                     | `coti` |
-| `RABBITMQ_PASSWORD`         | Senha do RabbitMQ                       | obrigatório |
-| `RABBITMQ_VIRTUAL_HOST`     | Virtual host                            | `/` |
-| `CORS_FRONTEND`             | Origem permitida para o frontend        | `http://localhost:4200` |
-| `SERVER_PORT`               | Porta da API                            | `8083` |
+| Variável | Descrição | Padrão local |
+|---|---|---|
+| `DB_URL` | URL do PostgreSQL | `jdbc:postgresql://localhost:5435/bd-api-financas` |
+| `DB_USER` | Usuário do PostgreSQL | `coti` |
+| `DB_PASSWORD` | Senha do PostgreSQL | obrigatório |
+| `JWT_SECRET` | Chave Base64 compartilhada | obrigatório |
+| `JWT_ISSUER` | Emissor esperado | `api-autenticacao` |
+| `RABBITMQ_HOST` | Host do RabbitMQ | `localhost` |
+| `RABBITMQ_PORT` | Porta do RabbitMQ | `5672` |
+| `RABBITMQ_USER` | Usuário do RabbitMQ | `coti` |
+| `RABBITMQ_PASSWORD` | Senha do RabbitMQ | obrigatório |
+| `RABBITMQ_VIRTUAL_HOST` | Virtual host | `/` |
+| `AGENTES_IA_BASE_URL` | URL-base da API Agentes IA | `http://localhost:8084` |
+| `CORS_FRONTEND` | Origem permitida para o frontend | `http://localhost:4200` |
+| `SERVER_PORT` | Porta da API | `8083` |
 
 ---
 
@@ -377,7 +393,7 @@ Variáveis disponíveis:
 - Docker Desktop;
 - Git.
 
-### 1. Clonar o repositório
+### 1. Clonar
 
 ```bash
 git clone https://github.com/beatrizlima-tech/api-financas.git
@@ -386,7 +402,7 @@ cd api-financas
 
 ### 2. Criar `.env.properties`
 
-Configure a senha do banco, a senha do RabbitMQ e a mesma chave JWT utilizada pela `api-autenticacao`.
+Configure as senhas locais e a mesma chave JWT utilizada pela `api-autenticacao`.
 
 ### 3. Subir a infraestrutura
 
@@ -394,7 +410,7 @@ Configure a senha do banco, a senha do RabbitMQ e a mesma chave JWT utilizada pe
 docker compose up -d
 ```
 
-### 4. Executar a aplicação
+### 4. Executar
 
 No Windows:
 
@@ -402,26 +418,26 @@ No Windows:
 .\mvnw.cmd spring-boot:run
 ```
 
-O Flyway aplicará automaticamente as migrações pendentes.
+O Flyway aplicará automaticamente as migrations pendentes.
+
+> Em ambientes que já possuam a fila `relatorios-movimentacoes` sem configuração de DLQ, a fila antiga deverá ser recriada antes da inicialização da nova versão.
 
 ---
 
 ## 🐳 Infraestrutura Docker
 
-O Docker Compose disponibiliza:
-
-| Serviço    | Porta local |
-|------------|-------------|
-| PostgreSQL | `5435`      |
-| pgAdmin    | `5056`      |
-| RabbitMQ   | `5672`      |
+| Serviço | Porta local |
+|---|---:|
+| PostgreSQL | `5435` |
+| pgAdmin | `5056` |
+| RabbitMQ | `5672` |
 | RabbitMQ Management | `15672` |
 
-Acessos locais:
+Acessos:
 
 ```text
-pgAdmin:   http://localhost:5056
-RabbitMQ:  http://localhost:15672
+pgAdmin:  http://localhost:5056
+RabbitMQ: http://localhost:15672
 ```
 
 Comandos:
@@ -467,25 +483,24 @@ Para testar endpoints protegidos:
 
 ## 🧪 Testes automatizados
 
-A aplicação possui **32 testes automatizados**:
+A aplicação possui **35 testes aprovados**:
 
-- 27 testes funcionais de categorias, movimentações e relatórios;
-- 5 testes de integração de segurança e isolamento entre usuários.
+- 28 testes de aplicação, validações, CRUD e relatórios;
+- 5 testes de segurança e isolamento entre usuários;
+- 2 testes unitários do `WorkerService`.
 
 Os testes utilizam:
 
 - JUnit;
 - MockMvc;
 - Mockito;
-- `@MockitoBean`;
 - H2 em memória;
 - perfil `test`;
-- RabbitMQ desativado durante a suíte;
-- Flyway desativado no ambiente de teste;
 - tokens JWT de teste;
-- validação de acesso entre usuários diferentes.
+- MockRestServiceServer;
+- RabbitMQ desativado durante a suíte.
 
-Executar no Windows:
+Executar:
 
 ```powershell
 .\mvnw.cmd clean test
@@ -494,7 +509,7 @@ Executar no Windows:
 Resultado atual:
 
 ```text
-Tests run: 32, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 35, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -508,17 +523,13 @@ Gerar o pacote:
 
 ## 🚧 Próximas melhorias
 
-- concluir a adoção de injeção por construtor;
-- aplicar Bean Validation aos DTOs;
-- padronizar erros com `ProblemDetail`;
-- impedir categorias duplicadas por usuário;
-- ampliar os testes unitários dos services;
-- adicionar perfil de produção;
-- integrar o worker à `api-agentesia`;
-- gerar análises financeiras com inteligência artificial;
-- enviar relatórios por e-mail;
-- integrar a API ao frontend Angular;
-- preparar a infraestrutura para AWS.
+- adicionar perfil específico de produção;
+- completar a documentação OpenAPI dos endpoints;
+- validar o fluxo completo com a `api-agentesia`;
+- integrar ao frontend Angular;
+- adicionar testes com PostgreSQL/Testcontainers;
+- avaliar JWT com chaves assimétricas;
+- preparar observabilidade e infraestrutura AWS.
 
 ---
 
@@ -526,20 +537,24 @@ Gerar o pacote:
 
 🚧 **Projeto em evolução ativa.**
 
-Implementado atualmente:
+Implementado:
 
 - CRUD de categorias;
 - CRUD de movimentações;
 - paginação e filtros por período;
 - segurança JWT;
 - isolamento de dados por usuário;
-- UUIDs públicos;
-- migrações Flyway;
+- UUIDs;
+- valores monetários com `BigDecimal`;
+- validações com Bean Validation;
+- erros padronizados com `ProblemDetail`;
+- migrations Flyway;
 - CORS configurável;
 - health check;
-- RabbitMQ;
+- RabbitMQ com retry e DLQ;
+- integração configurável com a API Agentes IA;
 - Swagger/OpenAPI;
-- 32 testes aprovados.
+- 35 testes aprovados.
 
 ---
 
