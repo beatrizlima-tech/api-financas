@@ -8,17 +8,33 @@ spring:
     password:
     driver-class-name: org.h2.Driver
 
+  flyway:
+    enabled: false
+
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
-
+    open-in-view: false
   rabbitmq:
     listener:
       simple:
         auto-startup: false
 
-
 server:
   port: 8083
+
+jwt:
+  issuer: api-autenticacao
+  secret: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  health:
+    rabbit:
+      enabled: false

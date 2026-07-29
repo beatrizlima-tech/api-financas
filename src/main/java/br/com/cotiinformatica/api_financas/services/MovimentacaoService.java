@@ -43,13 +43,17 @@ public class MovimentacaoService {
     /*
         Método para criar uma movimentação no banco de dados
      */
-    public MovimentacaoResponse criar(MovimentacaoRequest request) {
+    public MovimentacaoResponse criar(UUID usuarioId, MovimentacaoRequest request) {
 
         //Executar as validações
         validarMovimentacao(request);
 
         //Verificar se a categoria existe no banco de dados
-        var categoria = categoriaRepository.findById(request.categoriaId())
+        var categoria = categoriaRepository
+                .findByIdAndUsuarioId(
+                        request.categoriaId(),
+                        usuarioId
+                )
                 .orElseThrow(() ->
                         new RegistroNaoEncontradoException(
                                 "Categoria não encontrada."
@@ -60,6 +64,7 @@ public class MovimentacaoService {
         var movimentacao = new Movimentacao();
 
         //Preencher os dados da movimentação
+        movimentacao.setUsuarioId(usuarioId);
         movimentacao.setNome(request.nome().trim());
         movimentacao.setData(request.data());
         movimentacao.setValor(BigDecimal.valueOf(request.valor()));
@@ -68,7 +73,10 @@ public class MovimentacaoService {
                         request.tipo().trim().toUpperCase()
                 )
         );
+
         movimentacao.setCategoria(categoria);
+
+        movimentacaoRepository.save(movimentacao);
 
         //Salvar a movimentação no banco de dados
         movimentacaoRepository.save(movimentacao);
@@ -80,21 +88,22 @@ public class MovimentacaoService {
     /*
         Método para alterar uma movimentação no banco de dados
      */
-    public MovimentacaoResponse alterar(UUID id, MovimentacaoRequest request) {
+    public MovimentacaoResponse alterar(UUID usuarioId, UUID id, MovimentacaoRequest request) {
 
-        //Consultar a movimentação no banco de dados pelo ID
-        var movimentacao = movimentacaoRepository.findById(id)
+        //Procura a movimentação e confirma que pertence ao usuário
+        var movimentacao = movimentacaoRepository
+                .findByIdAndUsuarioId(id, usuarioId)
                 .orElseThrow(() ->
                         new RegistroNaoEncontradoException(
                                 "Movimentação não encontrada."
                         )
                 );
 
-        //Executar as validações
         validarMovimentacao(request);
 
-        //Verificar se a categoria existe no banco de dados
-        var categoria = categoriaRepository.findById(request.categoriaId())
+        //Procura a categoria escolhida e confirma que pertence ao usuário
+        var categoria = categoriaRepository
+                .findByIdAndUsuarioId(request.categoriaId(), usuarioId)
                 .orElseThrow(() ->
                         new RegistroNaoEncontradoException(
                                 "Categoria não encontrada."
@@ -122,10 +131,11 @@ public class MovimentacaoService {
     /*
         Método para excluir uma movimentação no banco de dados
      */
-    public MovimentacaoResponse excluir(UUID id) {
+    public MovimentacaoResponse excluir(UUID usuarioId, UUID id) {
 
         //Consultar a movimentação no banco de dados pelo ID
-        var movimentacao = movimentacaoRepository.findById(id)
+        var movimentacao = movimentacaoRepository
+                .findByIdAndUsuarioId(id, usuarioId)
                 .orElseThrow(() ->
                         new RegistroNaoEncontradoException(
                                 "Movimentação não encontrada."
@@ -143,6 +153,7 @@ public class MovimentacaoService {
         Método para consultar as movimentações por periodo de datas e com paginação
      */
     public Page<MovimentacaoResponse> consultar(
+            UUID usuarioId,
             LocalDate dataInicio,
             LocalDate dataFim,
             int pageIndex,
@@ -182,7 +193,8 @@ public class MovimentacaoService {
         var pageable = PageRequest.of(pageIndex, pageSize);
 
         //Consultar as movimentações no banco de dados
-        var movimentacoes = movimentacaoRepository.findByData(
+        var movimentacoes = movimentacaoRepository.findByUsuarioIdAndData(
+                usuarioId,
                 dataInicio,
                 dataFim,
                 pageable
@@ -195,10 +207,11 @@ public class MovimentacaoService {
     /*
         Método para consultar uma movimentação pelo ID
      */
-    public MovimentacaoResponse obterPorId(UUID id) {
+    public MovimentacaoResponse obterPorId(UUID usuarioId, UUID id) {
 
         //Consultar a movimentação pelo ID no banco de dados
-        var movimentacao = movimentacaoRepository.findById(id)
+        var movimentacao = movimentacaoRepository
+                .findByIdAndUsuarioId(id, usuarioId)
                 .orElseThrow(() ->
                         new RegistroNaoEncontradoException(
                                 "Movimentação não encontrada."
@@ -212,7 +225,7 @@ public class MovimentacaoService {
     /*
     Método para gerar o relatório das movimentações
  */
-    public String gerarRelatorioMovimentacoes(LocalDate dataInicio, LocalDate dataFim) throws Exception {
+    public String gerarRelatorioMovimentacoes(UUID usuarioId, String email, LocalDate dataInicio, LocalDate dataFim) throws Exception {
 
         //Verificar se as datas estão corretas
         if(dataInicio == null || dataFim == null) {
@@ -228,7 +241,11 @@ public class MovimentacaoService {
         }
 
         //Consultando as movimentações no banco de dados através do ID
-        var movimentacoes = movimentacaoRepository.findByData(dataInicio, dataFim);
+        var movimentacoes = movimentacaoRepository.findByUsuarioIdAndData(
+                usuarioId,
+                dataInicio,
+                dataFim
+        );
 
         if(movimentacoes.isEmpty()) {
             return "Nenhuma movimentação foi encontrada para o período de datas informado.";
@@ -239,7 +256,7 @@ public class MovimentacaoService {
 
         //criando os dados que serão enviados para a mensageria
         var relatorioMovimentacao = new RelatorioMovimentacaoRequest(
-                "usuario@email.com", //TODO pegar o email do usuário logado
+                email,
                 dataInicio,
                 dataFim,
                 objectMapper.writeValueAsString(response)

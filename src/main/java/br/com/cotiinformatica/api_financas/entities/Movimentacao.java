@@ -3,6 +3,8 @@ package br.com.cotiinformatica.api_financas.entities;
 import br.com.cotiinformatica.api_financas.enums.TipoMovimentacao;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -10,13 +12,17 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "movimentacoes")
-@Data
+@Getter
+@Setter
 public class Movimentacao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id")
     private UUID id;
+
+    @Column(name = "usuario_id", nullable = false, updatable = false)
+    private UUID usuarioId;
 
     @Column(name = "nome", length = 150, nullable = false)
     private String nome;

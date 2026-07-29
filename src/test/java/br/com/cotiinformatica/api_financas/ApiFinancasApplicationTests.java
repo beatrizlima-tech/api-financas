@@ -4,38 +4,46 @@ import br.com.cotiinformatica.api_financas.dtos.CategoriaRequest;
 import br.com.cotiinformatica.api_financas.dtos.CategoriaResponse;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoRequest;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoResponse;
-
-import java.time.LocalDate;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
-
-import java.nio.charset.StandardCharsets;
-
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInstance;
 import org.mockito.Mockito;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.context.WebApplicationContext;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 @SpringBootTest
-@AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ApiFinancasApplicationTests {
 
     @Autowired
+    private WebApplicationContext context;
+
+    private static final UUID USUARIO_ID_TESTE =
+            UUID.fromString("11111111-1111-1111-1111-111111111111");
+
     private MockMvc mockMvc;
 
     @Autowired
@@ -44,6 +52,21 @@ class ApiFinancasApplicationTests {
     @MockitoBean
     private RabbitTemplate rabbitTemplate;
 
+    @BeforeAll
+    void configurarMockMvc() {
+
+        mockMvc = webAppContextSetup(context)
+                .apply(springSecurity())
+                .defaultRequest(
+                        get("/")
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(USUARIO_ID_TESTE.toString())
+                                        .claim("email", "usuario@email.com")
+                                        .claim("perfil", "Operador")
+                                ))
+                )
+                .build();
+    }
     @Test
     @DisplayName("Deve criar uma categoria com sucesso.")
     public void criarCategoriaTest() throws Exception {

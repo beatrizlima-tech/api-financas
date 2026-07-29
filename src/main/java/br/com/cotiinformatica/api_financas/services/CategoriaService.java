@@ -18,7 +18,7 @@ public class CategoriaService {
     @Autowired
     private CategoriaRepository categoriaRepository;
 
-    public CategoriaResponse criar(CategoriaRequest request) {
+    public CategoriaResponse criar(UUID usuarioId, CategoriaRequest request) {
 
         //Validar se os dados da categoria foram enviados
         if (request == null) {
@@ -29,6 +29,8 @@ public class CategoriaService {
 
         //Criando um objeto da entidade 'Categoria'
         var categoria = new Categoria();
+
+        categoria.setUsuarioId(usuarioId);
 
         //Capturando os dados recebidos
         categoria.setNome(request.nome());
@@ -46,15 +48,10 @@ public class CategoriaService {
         return toResponse(categoria);
     }
 
-    public CategoriaResponse alterar(UUID id, CategoriaRequest request) {
+    public CategoriaResponse alterar(UUID usuarioId, UUID id, CategoriaRequest request) {
 
         //Buscar a categoria no banco de dados através do ID
-        var categoria = categoriaRepository.findById(id)
-                .orElseThrow(() ->
-                        new RegistroNaoEncontradoException(
-                                "Categoria não encontrada."
-                        )
-                );
+        var categoria = buscarCategoriaDoUsuario(id, usuarioId);
 
         //Validar se os dados da categoria foram envidados
         if (request == null) {
@@ -79,15 +76,10 @@ public class CategoriaService {
         return toResponse(categoria);
     }
 
-    public CategoriaResponse excluir(UUID id) {
+    public CategoriaResponse excluir(UUID usuarioId, UUID id) {
 
         //Buscar a categoria no banco de dados através do ID
-        var categoria = categoriaRepository.findById(id)
-                .orElseThrow(() ->
-                        new RegistroNaoEncontradoException(
-                                "Categoria não encontrada."
-                        )
-                );
+        var categoria = buscarCategoriaDoUsuario(id, usuarioId);
 
         //Excluindo no banco de dados
         categoriaRepository.delete(categoria);
@@ -96,30 +88,21 @@ public class CategoriaService {
         return toResponse(categoria);
     }
 
-    public List<CategoriaResponse> consultar() {
+    public List<CategoriaResponse> consultar(UUID usuarioId) {
 
-        //Consultar todas as categorias cadastradas
-        var categorias = categoriaRepository.findAll();
+        var categorias = categoriaRepository.findAllByUsuarioIdOrderByNomeAsc(usuarioId);
 
-        //Copiar cada categoria da lista obtida do banco de dados
-        //para uma lista do DTO CategoriaResponse
         return categorias.stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public CategoriaResponse obterPorId(UUID id) {
+    public CategoriaResponse obterPorId(UUID usuarioId, UUID id) {
 
-        //Buscar a categoria no banco de dados através do ID
-        var categoria = categoriaRepository.findById(id)
-                .orElseThrow(() ->
-                        new RegistroNaoEncontradoException(
-                                "Categoria não encontrada."
-                        )
-                );
+        var categoria = buscarCategoriaDoUsuario(id, usuarioId);
 
-        //Retornar os dados
         return toResponse(categoria);
+
     }
 
     private void validarCategoria(Categoria categoria) {
@@ -142,5 +125,17 @@ public class CategoriaService {
                 categoria.getId(),
                 categoria.getNome()
         );
+    }
+
+    private Categoria buscarCategoriaDoUsuario(UUID id, UUID usuarioId) {
+
+        return categoriaRepository
+                .findByIdAndUsuarioId(id, usuarioId)
+                .orElseThrow(() ->
+                        new RegistroNaoEncontradoException(
+                             "Categoria não encontrada."
+                        )
+                );
+
     }
 }

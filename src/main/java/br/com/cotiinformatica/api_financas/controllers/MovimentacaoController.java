@@ -1,11 +1,14 @@
 package br.com.cotiinformatica.api_financas.controllers;
 
+import br.com.cotiinformatica.api_financas.components.UsuarioAutenticadoComponent;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoRequest;
 import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
 import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.services.MovimentacaoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -18,10 +21,15 @@ public class MovimentacaoController {
     @Autowired
     private MovimentacaoService movimentacaoService;
 
+    @Autowired
+    private UsuarioAutenticadoComponent usuarioAutenticadoComponent;
+
     @PostMapping("criar")
-    public ResponseEntity<?> criar(@RequestBody MovimentacaoRequest request) {
+    public ResponseEntity<?> criar(@AuthenticationPrincipal Jwt jwt, @RequestBody MovimentacaoRequest request) {
         try {
-            var response = movimentacaoService.criar(request);
+            var usuarioId = usuarioAutenticadoComponent.obterUsuarioId(jwt);
+
+            var response = movimentacaoService.criar(usuarioId, request);
 
             return ResponseEntity.status(201).body(response);
         }
@@ -34,9 +42,11 @@ public class MovimentacaoController {
     }
 
     @PutMapping("alterar/{id}")
-    public ResponseEntity<?> alterar(@PathVariable UUID id, @RequestBody MovimentacaoRequest request) {
+    public ResponseEntity<?> alterar(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id, @RequestBody MovimentacaoRequest request) {
         try {
-            var response = movimentacaoService.alterar(id, request);
+            var usuarioId = usuarioAutenticadoComponent.obterUsuarioId(jwt);
+
+            var response = movimentacaoService.alterar(usuarioId, id, request);
 
             return ResponseEntity.status(200).body(response);
         }
@@ -49,9 +59,11 @@ public class MovimentacaoController {
     }
 
     @DeleteMapping("excluir/{id}")
-    public ResponseEntity<?> excluir(@PathVariable UUID id) {
+    public ResponseEntity<?> excluir(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
         try {
-            var response = movimentacaoService.excluir(id);
+            var usuarioId = usuarioAutenticadoComponent.obterUsuarioId(jwt);
+
+            var response = movimentacaoService.excluir(usuarioId, id);
 
             return ResponseEntity.status(200).body(response);
         }
@@ -62,13 +74,22 @@ public class MovimentacaoController {
 
     @GetMapping("consultar")
     public ResponseEntity<?> consultar(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam LocalDate dataInicio,
             @RequestParam LocalDate dataFim,
             @RequestParam(defaultValue = "0") int pageIndex,
             @RequestParam(defaultValue = "25") int pageSize
     ) {
         try {
-            var response = movimentacaoService.consultar(dataInicio, dataFim, pageIndex, pageSize);
+            var usuarioId = usuarioAutenticadoComponent.obterUsuarioId(jwt);
+
+            var response = movimentacaoService.consultar(
+                    usuarioId,
+                    dataInicio,
+                    dataFim,
+                    pageIndex,
+                    pageSize
+            );
 
             return ResponseEntity.status(200).body(response);
         }
@@ -78,9 +99,11 @@ public class MovimentacaoController {
     }
 
     @GetMapping("obter/{id}")
-    public ResponseEntity<?> obter(@PathVariable UUID id) {
+    public ResponseEntity<?> obter(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
         try {
-            var response = movimentacaoService.obterPorId(id);
+             var usuarioId = usuarioAutenticadoComponent.obterUsuarioId(jwt);
+
+            var response = movimentacaoService.obterPorId(usuarioId, id);
 
             return ResponseEntity.status(200).body(response);
         }
@@ -90,9 +113,18 @@ public class MovimentacaoController {
     }
 
     @PostMapping("gerar-relatorio")
-    public ResponseEntity<?> gerarRelatorio(@RequestParam LocalDate dataInicio, @RequestParam LocalDate dataFim) throws Exception{
+    public ResponseEntity<?> gerarRelatorio(@AuthenticationPrincipal Jwt jwt, @RequestParam LocalDate dataInicio, @RequestParam LocalDate dataFim) throws Exception{
         try {
-            var response = movimentacaoService.gerarRelatorioMovimentacoes(dataInicio, dataFim);
+            var usuarioId = usuarioAutenticadoComponent.obterUsuarioId(jwt);
+
+            var email = usuarioAutenticadoComponent.obterEmail(jwt);
+
+            var response = movimentacaoService.gerarRelatorioMovimentacoes(
+                    usuarioId,
+                    email,
+                    dataInicio,
+                    dataFim
+            );
 
             return ResponseEntity.status(200).body(response);
         }

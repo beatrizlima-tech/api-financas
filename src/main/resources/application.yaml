@@ -1,28 +1,31 @@
 spring:
-
   application:
     name: api-financas
 
-  datasource:
-    url: jdbc:postgresql://localhost:5435/bd-api-financas
-    username: coti
-    password: coti
-    driver-class-name: org.postgresql.Driver
+  profiles:
+    default: dev
 
   jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: coti
-    password: coti
-    virtual-host: /
+    open-in-view: false
 
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
+
+cors:
+  frontend: ${CORS_FRONTEND:http://localhost:4200}
+
+jwt:
+  issuer: ${JWT_ISSUER:api-autenticacao}
+  secret: ${JWT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never

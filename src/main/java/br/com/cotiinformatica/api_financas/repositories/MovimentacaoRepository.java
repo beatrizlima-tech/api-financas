@@ -10,10 +10,41 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface MovimentacaoRepository extends JpaRepository<Movimentacao, UUID> {
+
+    Optional<Movimentacao> findByIdAndUsuarioId(UUID id, UUID usuarioId);
+
+    @Query("""
+        SELECT m
+        FROM Movimentacao m
+        WHERE m.usuarioId = :usuarioId
+             AND m.data BETWEEN :pDataInicio AND :pDataFim
+                 ORDER BY m.data DESC
+    """)
+    Page<Movimentacao> findByUsuarioIdAndData(
+            @Param("usuarioId") UUID usuarioId,
+            @Param("pDataInicio") LocalDate dataInicio,
+            @Param("pDataFim") LocalDate dataFim,
+            Pageable paginacao
+    );
+
+    @Query("""
+        SELECT m
+        FROM Movimentacao m
+        WHERE m.usuarioId = :usuarioId
+             AND m.data BETWEEN :pDataInicio AND :pDataFim
+                 ORDER BY m.data DESC
+    """)
+    List<Movimentacao> findByUsuarioIdAndData(
+            @Param("usuarioId") UUID usuarioId,
+            @Param("pDataInicio") LocalDate dataInicio,
+            @Param("pDataFim") LocalDate dataFim
+    );
+
 
     /*
         Consulta para trazer uma lista de movimentações
@@ -23,7 +54,7 @@ public interface MovimentacaoRepository extends JpaRepository<Movimentacao, UUID
     @Query("""
         SELECT m
         FROM Movimentacao m
-        WHERE m.data BETWEEN :pDataInicio AND :pDataFim        
+        WHERE m.data BETWEEN :pDataInicio AND :pDataFim
     """)
     Page<Movimentacao> findByData(
             @Param("pDataInicio") LocalDate dataInicio,
