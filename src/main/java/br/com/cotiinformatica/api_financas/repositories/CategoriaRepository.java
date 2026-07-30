@@ -20,4 +20,15 @@ public interface CategoriaRepository
     List<Categoria> findAllByUsuarioIdOrderByNomeAsc(
             UUID usuarioId
     );
+
+    boolean existsByUsuarioIdAndNomeIgnoreCase(
+            UUID usuarioId,
+            String nome
+    );
+
+    boolean existsByUsuarioIdAndNomeIgnoreCaseAndIdNot(
+            UUID usuarioId,
+            String nome,
+            UUID id
+    );
 }

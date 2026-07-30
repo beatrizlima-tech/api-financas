@@ -6,7 +6,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=for-the-badge&logo=postgresql)
 ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-Messaging-FF6600?style=for-the-badge&logo=rabbitmq)
 ![Docker](https://img.shields.io/badge/Docker-Containers-2496ED?style=for-the-badge&logo=docker)
-![Tests](https://img.shields.io/badge/tests-35%20passing-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen?style=for-the-badge)
 
 API REST para gerenciamento de finanças pessoais, protegida por JWT, isolada por usuário e integrada ao ecossistema de autenticação e processamento de relatórios financeiros.
 
@@ -18,9 +18,9 @@ A **API Finanças** permite que usuários autenticados gerenciem categorias, rec
 
 A aplicação recebe os tokens JWT emitidos pela `api-autenticacao`, valida assinatura, emissor e expiração e utiliza o UUID público presente no claim `sub` para identificar o proprietário dos dados.
 
-Cada usuário acessa somente suas próprias categorias e movimentações. As consultas, alterações e exclusões são sempre filtradas pelo UUID do usuário autenticado.
+Cada usuário acessa somente suas próprias categorias e movimentações. Consultas, alterações e exclusões são sempre filtradas pelo UUID do usuário autenticado.
 
-A API também possui um fluxo assíncrono de relatórios financeiros com RabbitMQ e integração HTTP com a `api-agentesia`.
+A API também possui um fluxo assíncrono de relatórios financeiros com RabbitMQ e integração HTTP autenticada com a `api-agentesia`.
 
 ---
 
@@ -41,16 +41,16 @@ PostgreSQL
 Principais responsabilidades:
 
 - **Controllers:** recebem as requisições HTTP e retornam respostas tipadas;
-- **Services:** concentram regras de negócio, validações e conversões;
+- **Services:** concentram regras de negócio, transações e conversões;
 - **Repositories:** realizam persistência e consultas com Spring Data JPA;
-- **Entities:** representam as tabelas do banco;
-- **DTOs:** transportam os dados sem expor as entidades;
+- **Entities:** representam as tabelas do banco de dados;
+- **DTOs:** transportam dados sem expor as entidades;
 - **Components:** extraem os dados do usuário autenticado;
 - **Configurations:** configuram segurança, CORS, Swagger, RabbitMQ e integrações;
-- **Handlers:** centralizam erros com `ProblemDetail`;
-- **Migrations:** versionam a estrutura do banco com Flyway.
+- **Handlers:** centralizam os erros utilizando `ProblemDetail`;
+- **Migrations:** versionam a estrutura e a integridade do banco com Flyway.
 
-A aplicação utiliza injeção de dependências por construtor.
+A aplicação utiliza injeção de dependências por construtor e transações declarativas com `@Transactional`.
 
 ---
 
@@ -86,6 +86,14 @@ As rotas protegidas exigem:
 Authorization: Bearer <accessToken>
 ```
 
+A comunicação da `api-financas` com a `api-agentesia` utiliza uma credencial interna separada:
+
+```http
+X-Internal-Api-Key: <chave-interna>
+```
+
+Essa chave não substitui o JWT do usuário. Ela protege exclusivamente a comunicação entre os serviços.
+
 ---
 
 ## ✅ Funcionalidades
@@ -98,8 +106,13 @@ Authorization: Bearer <accessToken>
 - consultar categorias;
 - obter categoria por UUID;
 - validar nome obrigatório e tamanho;
-- normalizar espaços;
-- impedir acesso a categorias de outro usuário.
+- remover espaços externos do nome;
+- impedir nomes duplicados para o mesmo usuário;
+- comparar duplicidades ignorando maiúsculas e minúsculas;
+- impedir exclusão de categorias com movimentações vinculadas;
+- impedir acesso a categorias de outro usuário;
+- proteger a unicidade também no PostgreSQL;
+- tratar conflitos concorrentes durante a gravação.
 
 ### Movimentações
 
@@ -113,6 +126,7 @@ Authorization: Bearer <accessToken>
 - ordenar por data decrescente;
 - utilizar `BigDecimal` para valores monetários;
 - aceitar no máximo duas casas decimais;
+- normalizar nomes e tipos recebidos;
 - associar movimentações a categorias;
 - validar se a categoria pertence ao usuário autenticado;
 - impedir acesso a movimentações de outro usuário.
@@ -123,10 +137,22 @@ As respostas de erro utilizam o padrão `ProblemDetail`:
 
 - `400 Bad Request` para dados inválidos;
 - `401 Unauthorized` para autenticação ausente ou inválida;
-- `404 Not Found` para recursos não encontrados;
+- `404 Not Found` para recursos inexistentes;
+- `409 Conflict` para categorias duplicadas ou em uso;
 - `500 Internal Server Error` para falhas inesperadas.
 
 As mensagens de validação são agrupadas por campo.
+
+Exemplo de conflito:
+
+```json
+{
+  "detail": "Já existe uma categoria com esse nome para este usuário.",
+  "instance": "/api/v1/categorias/criar",
+  "status": 409,
+  "title": "Categoria já cadastrada"
+}
+```
 
 ---
 
@@ -143,7 +169,7 @@ MovimentacaoService
         ↓
 Consulta das movimentações do usuário
         ↓
-Serialização com Jackson
+Serialização com Jackson 3
         ↓
 RabbitMQ
         ↓
@@ -151,13 +177,16 @@ Fila relatorios-movimentacoes
         ↓
 WorkerService
         ↓
+RestClient com X-Internal-Api-Key
+        ↓
 API Agentes IA
 ```
 
-O worker utiliza um `RestClient` cuja URL-base é configurável pela variável:
+O worker utiliza um `RestClient` configurado pelas variáveis:
 
 ```text
 AGENTES_IA_BASE_URL
+AGENTES_IA_API_KEY
 ```
 
 Em caso de falha na API de agentes:
@@ -180,6 +209,8 @@ A DLQ preserva mensagens que não puderam ser processadas para análise posterio
 
 ## 🔄 Integração entre as APIs
 
+### Autenticação do usuário
+
 ```text
 Cliente
    ↓
@@ -197,6 +228,22 @@ Consultas filtradas por usuario_id
 ```
 
 A `api-financas` não armazena senhas e não realiza login. Essas responsabilidades pertencem à `api-autenticacao`.
+
+### Processamento do relatório
+
+```text
+api-financas
+   ↓
+RabbitMQ
+   ↓
+WorkerService
+   ↓
+X-Internal-Api-Key
+   ↓
+api-agentesia
+```
+
+A variável `AGENTES_IA_API_KEY` da `api-financas` deve possuir o mesmo valor da variável `INTERNAL_API_KEY` da `api-agentesia`.
 
 ---
 
@@ -216,7 +263,7 @@ A `api-financas` não armazena senhas e não realiza login. Essas responsabilida
 - Spring AMQP;
 - RabbitMQ;
 - RestClient;
-- Jackson;
+- Jackson 3;
 - H2 Database;
 - Docker;
 - Docker Compose;
@@ -239,7 +286,8 @@ O Flyway gerencia a evolução do banco por meio de migrations:
 src/main/resources/db/migration/
 ├── V1__create_finance_schema.sql
 ├── V2__add_user_ownership.sql
-└── V3__make_user_ownership_required.sql
+├── V3__make_user_ownership_required.sql
+└── V4__merge_duplicate_categories_and_add_unique_index.sql
 ```
 
 As migrations:
@@ -249,7 +297,19 @@ As migrations:
 - adicionam o campo `usuario_id`;
 - criam índices para consultas por usuário;
 - tornam o proprietário obrigatório;
+- normalizam nomes de categorias existentes;
+- transferem movimentações de categorias duplicadas;
+- removem categorias duplicadas antigas;
+- criam um índice único normalizado por usuário;
 - preservam a integridade dos dados.
+
+A migration `V4` garante que o mesmo usuário não possua categorias equivalentes, como:
+
+```text
+Alimentação
+alimentação
+  Alimentação
+```
 
 O Hibernate utiliza:
 
@@ -257,7 +317,7 @@ O Hibernate utiliza:
 ddl-auto: validate
 ```
 
-Dessa forma, o Hibernate valida as entidades e o Flyway controla as alterações estruturais.
+Dessa forma, o Hibernate valida as entidades enquanto o Flyway controla as alterações estruturais.
 
 ---
 
@@ -361,9 +421,10 @@ Exemplo:
 DB_PASSWORD=coti
 RABBITMQ_PASSWORD=coti
 JWT_SECRET=COLE_AQUI_A_MESMA_CHAVE_BASE64_DA_API_AUTENTICACAO
+AGENTES_IA_API_KEY=COLE_AQUI_A_MESMA_INTERNAL_API_KEY_DA_API_AGENTESIA
 ```
 
-Esse arquivo está no `.gitignore` e não deve ser enviado ao GitHub.
+O arquivo `.env.properties` está no `.gitignore` e não deve ser enviado ao GitHub, compartilhado publicamente ou incluído em arquivos ZIP.
 
 ### Variáveis de ambiente
 
@@ -372,16 +433,25 @@ Esse arquivo está no `.gitignore` e não deve ser enviado ao GitHub.
 | `DB_URL` | URL do PostgreSQL | `jdbc:postgresql://localhost:5435/bd-api-financas` |
 | `DB_USER` | Usuário do PostgreSQL | `coti` |
 | `DB_PASSWORD` | Senha do PostgreSQL | obrigatório |
-| `JWT_SECRET` | Chave Base64 compartilhada | obrigatório |
-| `JWT_ISSUER` | Emissor esperado | `api-autenticacao` |
+| `JWT_SECRET` | Chave Base64 compartilhada com a autenticação | obrigatório |
+| `JWT_ISSUER` | Emissor esperado do token | `api-autenticacao` |
 | `RABBITMQ_HOST` | Host do RabbitMQ | `localhost` |
 | `RABBITMQ_PORT` | Porta do RabbitMQ | `5672` |
 | `RABBITMQ_USER` | Usuário do RabbitMQ | `coti` |
 | `RABBITMQ_PASSWORD` | Senha do RabbitMQ | obrigatório |
 | `RABBITMQ_VIRTUAL_HOST` | Virtual host | `/` |
 | `AGENTES_IA_BASE_URL` | URL-base da API Agentes IA | `http://localhost:8084` |
-| `CORS_FRONTEND` | Origem permitida para o frontend | `http://localhost:4200` |
+| `AGENTES_IA_API_KEY` | Chave de comunicação interna com a API Agentes IA | obrigatório |
+| `CORS_ALLOWED_ORIGINS` | Origens autorizadas, separadas por vírgula | `http://localhost:4200` |
 | `SERVER_PORT` | Porta da API | `8083` |
+| `SPRINGDOC_API_DOCS_ENABLED` | Habilita o documento OpenAPI em produção | `false` |
+| `SPRINGDOC_SWAGGER_UI_ENABLED` | Habilita o Swagger UI em produção | `false` |
+
+Exemplo com mais de uma origem CORS:
+
+```properties
+CORS_ALLOWED_ORIGINS=http://localhost:4200,https://meu-frontend.com
+```
 
 ---
 
@@ -402,12 +472,18 @@ cd api-financas
 
 ### 2. Criar `.env.properties`
 
-Configure as senhas locais e a mesma chave JWT utilizada pela `api-autenticacao`.
+Configure:
+
+- senha local do PostgreSQL;
+- senha local do RabbitMQ;
+- mesma chave JWT utilizada pela `api-autenticacao`;
+- mesma chave interna utilizada pela `api-agentesia`.
 
 ### 3. Subir a infraestrutura
 
 ```bash
 docker compose up -d
+docker compose ps
 ```
 
 ### 4. Executar
@@ -464,12 +540,17 @@ OpenAPI:
 http://localhost:8083/v3/api-docs
 ```
 
-> No perfil `prod`, o Swagger UI e o documento OpenAPI ficam desativados por padrão. Eles podem ser habilitados pelas variáveis `SPRINGDOC_SWAGGER_UI_ENABLED` e `SPRINGDOC_API_DOCS_ENABLED`.
-
 Health check:
 
 ```text
 http://localhost:8083/actuator/health
+```
+
+No perfil `prod`, o Swagger UI e o documento OpenAPI ficam desativados por padrão. Eles podem ser habilitados pelas variáveis:
+
+```text
+SPRINGDOC_SWAGGER_UI_ENABLED
+SPRINGDOC_API_DOCS_ENABLED
 ```
 
 Para testar endpoints protegidos:
@@ -479,16 +560,21 @@ Para testar endpoints protegidos:
 3. abra o Swagger da `api-financas`;
 4. clique em **Authorize**;
 5. cole somente o token iniciado por `eyJ`;
-6. execute os endpoints.
+6. confirme a autorização;
+7. execute os endpoints.
+
+O Swagger não remove a necessidade de autenticação, pois o JWT identifica o proprietário das categorias e movimentações.
 
 ---
 
 ## 🧪 Testes automatizados
 
-A aplicação possui **40 testes aprovados**:
+A aplicação possui **50 testes aprovados**:
 
-- 33 testes de aplicação, validações, CRUD, parâmetros, JSON e relatórios;
-- 5 testes de segurança e isolamento entre usuários;
+- 36 testes de aplicação, validações, CRUD, parâmetros, JSON, CORS e relatórios;
+- 7 testes de segurança e isolamento entre usuários;
+- 3 testes unitários do `CategoriaService`;
+- 2 testes da configuração do `RestClient`;
 - 2 testes unitários do `WorkerService`.
 
 Os testes utilizam:
@@ -511,7 +597,7 @@ Executar:
 Resultado atual:
 
 ```text
-Tests run: 35, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 50, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
 ```
 
@@ -527,9 +613,10 @@ Gerar o pacote:
 
 - validar o fluxo completo com a `api-agentesia`;
 - integrar ao frontend Angular;
-- adicionar testes com PostgreSQL/Testcontainers;
+- adicionar testes com PostgreSQL e Testcontainers;
 - avaliar JWT com chaves assimétricas;
-- preparar observabilidade e infraestrutura AWS.
+- adicionar observabilidade distribuída;
+- preparar a infraestrutura de produção na AWS.
 
 ---
 
@@ -547,14 +634,19 @@ Implementado:
 - UUIDs;
 - valores monetários com `BigDecimal`;
 - validações com Bean Validation;
+- normalização dos DTOs;
+- categorias únicas por usuário;
+- proteção de categorias em uso;
+- transações declarativas;
 - erros padronizados com `ProblemDetail`;
 - migrations Flyway;
-- CORS configurável;
+- índice único normalizado no PostgreSQL;
+- CORS configurável para múltiplas origens;
 - health check;
 - RabbitMQ com retry e DLQ;
-- integração configurável com a API Agentes IA;
-- documentação Swagger/OpenAPI completa;
-- 40 testes aprovados.
+- integração autenticada com a API Agentes IA;
+- documentação Swagger/OpenAPI;
+- 50 testes automatizados aprovados.
 
 ---
 

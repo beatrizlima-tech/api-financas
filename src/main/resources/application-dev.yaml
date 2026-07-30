@@ -40,6 +40,7 @@ spring:
 integrations:
   agentes-ia:
     base-url: ${AGENTES_IA_BASE_URL:http://localhost:8084}
+    api-key: ${AGENTES_IA_API_KEY}
 
 springdoc:
   api-docs:

@@ -11,20 +11,22 @@ import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoExcep
 import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.repositories.CategoriaRepository;
 import br.com.cotiinformatica.api_financas.repositories.MovimentacaoRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class MovimentacaoService {
 
     private final CategoriaRepository categoriaRepository;
@@ -56,13 +58,10 @@ public class MovimentacaoService {
 
     }
 
-
         // Método para criar uma movimentação no banco de dados
 
+    @Transactional
     public MovimentacaoResponse criar(UUID usuarioId, MovimentacaoRequest request) {
-
-        //Executar as validações
-        validarMovimentacao(request);
 
         //Verificar se a categoria existe no banco de dados
         var categoria = categoriaRepository
@@ -81,14 +80,10 @@ public class MovimentacaoService {
 
         //Preencher os dados da movimentação
         movimentacao.setUsuarioId(usuarioId);
-        movimentacao.setNome(request.nome().trim());
+        movimentacao.setNome(request.nome());
         movimentacao.setData(request.data());
         movimentacao.setValor(request.valor());
-        movimentacao.setTipo(
-                TipoMovimentacao.valueOf(
-                        request.tipo().trim().toUpperCase()
-                )
-        );
+        movimentacao.setTipo(TipoMovimentacao.valueOf(request.tipo()));
 
         movimentacao.setCategoria(categoria);
 
@@ -99,9 +94,7 @@ public class MovimentacaoService {
         return toResponse(movimentacao);
     }
 
-    /*
-        Método para alterar uma movimentação no banco de dados
-     */
+    @Transactional
     public MovimentacaoResponse alterar(UUID usuarioId, UUID id, MovimentacaoRequest request) {
 
         //Procura a movimentação e confirma que pertence ao usuário
@@ -113,8 +106,6 @@ public class MovimentacaoService {
                         )
                 );
 
-        validarMovimentacao(request);
-
         //Procura a categoria escolhida e confirma que pertence ao usuário
         var categoria = categoriaRepository
                 .findByIdAndUsuarioId(request.categoriaId(), usuarioId)
@@ -125,14 +116,10 @@ public class MovimentacaoService {
                 );
 
         //Preencher os dados da movimentação
-        movimentacao.setNome(request.nome().trim());
+        movimentacao.setNome(request.nome());
         movimentacao.setData(request.data());
         movimentacao.setValor(request.valor());
-        movimentacao.setTipo(
-                TipoMovimentacao.valueOf(
-                        request.tipo().trim().toUpperCase()
-                )
-        );
+        movimentacao.setTipo(TipoMovimentacao.valueOf(request.tipo()));
         movimentacao.setCategoria(categoria);
 
         //Salvar a movimentação no banco de dados
@@ -142,9 +129,7 @@ public class MovimentacaoService {
         return toResponse(movimentacao);
     }
 
-    /*
-        Método para excluir uma movimentação no banco de dados
-     */
+    @Transactional
     public MovimentacaoResponse excluir(UUID usuarioId, UUID id) {
 
         //Consultar a movimentação no banco de dados pelo ID
@@ -252,7 +237,7 @@ public class MovimentacaoService {
             );
         }
 
-        var movimentacoes = movimentacaoRepository.findByUsuarioIdAndData(usuarioId, dataInicio, dataFim);
+        var movimentacoes = movimentacaoRepository.findByUsuarioIdAndData(usuarioId, dataInicio, dataFim, Pageable.unpaged());
 
         if(movimentacoes.isEmpty()) {
             return "Nenhuma movimentação foi encontrada para o período de datas informado.";
@@ -272,7 +257,7 @@ public class MovimentacaoService {
             rabbitTemplate.convertAndSend(queue.getName(), relatorioJson);
 
         }
-        catch (JsonProcessingException exception) {
+        catch (JacksonException exception) {
 
             throw new ProcessamentoRelatorioException(
                     "Não foi possível preparar os dados do relatório.",
@@ -283,71 +268,8 @@ public class MovimentacaoService {
         return "Sucesso! Os dados foram enviados para a fila de processamento do relatório.";
     }
 
+    // Método para retornar os dados no DTO de resposta
 
-    /*
-        Método para validar os dados da movimentação
-     */
-    private void validarMovimentacao(MovimentacaoRequest request) {
-
-        if (request == null) {
-            throw new ValidacaoException(
-                    "Os dados da movimentação são obrigatórios."
-            );
-        }
-
-        if (request.nome() == null || request.nome().trim().isEmpty()) {
-            throw new ValidacaoException(
-                    "O nome da movimentação é obrigatório."
-            );
-        }
-        if (request.nome().trim().length() < 6) {
-            throw new ValidacaoException(
-                    "O nome da movimentação deve ter entre 6 e 150 caracteres."
-            );
-        }
-
-        if (request.data() == null) {
-            throw new ValidacaoException(
-                    "A data da movimentação é obrigatória."
-            );
-        }
-
-        if (request.valor() == null) {
-            throw new ValidacaoException(
-                    "O valor da movimentação é obrigatório."
-            );
-        }
-
-        if (request.valor().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ValidacaoException(
-                    "O valor da movimentação deve ser maior do que zero."
-            );
-        }
-
-        if (request.tipo() == null || request.tipo().trim().isEmpty()) {
-            throw new ValidacaoException(
-                    "O tipo da movimentação é obrigatório."
-            );
-        }
-
-        var tipo = request.tipo().trim().toUpperCase();
-
-        if (!tipo.equals("DESPESA") && !tipo.equals("RECEITA")) {
-            throw new ValidacaoException(
-                    "O tipo da movimentação deve ser RECEITA ou DESPESA."
-            );
-        }
-
-        if (request.categoriaId() == null) {
-            throw new ValidacaoException(
-                    "O ID da categoria é obrigatório."
-            );
-        }
-    }
-
-    /*
-        Método para retornar os dados no DTO de resposta
-     */
     private MovimentacaoResponse toResponse(Movimentacao movimentacao) {
         return new MovimentacaoResponse(
                 movimentacao.getId(),

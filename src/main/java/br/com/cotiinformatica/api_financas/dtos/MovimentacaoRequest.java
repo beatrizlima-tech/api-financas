@@ -4,6 +4,7 @@ import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.UUID;
 
 public record MovimentacaoRequest (
@@ -39,5 +40,15 @@ public record MovimentacaoRequest (
 
 )
 {
+    public MovimentacaoRequest {
+
+        if(nome != null) {
+            nome = nome.trim();
+        }
+
+        if(tipo != null) {
+            tipo = tipo.trim().toUpperCase(Locale.ROOT);
+        }
+    }
 
 }

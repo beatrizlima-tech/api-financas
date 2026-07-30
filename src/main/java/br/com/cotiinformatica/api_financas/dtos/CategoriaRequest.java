@@ -12,4 +12,11 @@ public record CategoriaRequest(
         )
         String nome
 ) {
+
+        public CategoriaRequest {
+                if(nome != null) {
+                        nome = nome.trim();
+                }
+        }
+
 }

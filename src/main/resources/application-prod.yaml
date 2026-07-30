@@ -37,7 +37,7 @@ server:
   port: ${SERVER_PORT:8083}
 
 cors:
-  frontend: ${CORS_FRONTEND}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
 
 jwt:
   issuer: ${JWT_ISSUER}
@@ -46,6 +46,7 @@ jwt:
 integrations:
   agentes-ia:
     base-url: ${AGENTES_IA_BASE_URL}
+    api-key: ${AGENTES_IA_API_KEY}
 
 springdoc:
   api-docs:

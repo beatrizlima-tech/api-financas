@@ -1,6 +1,6 @@
 package br.com.cotiinformatica.api_financas;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,10 +21,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -240,6 +238,48 @@ class ApiFinancasSecurityIntegrationTest {
                                 )
                 )
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void devePermitirPreflightDaOrigemConfigurada()
+            throws Exception {
+
+        mockMvc.perform(
+                        options("/api/v1/categorias/consultar")
+                                .header(
+                                        HttpHeaders.ORIGIN,
+                                        "http://localhost:4200"
+                                )
+                                .header(
+                                        HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                        "GET"
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        header().string(
+                                HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                                "http://localhost:4200"
+                        )
+                );
+    }
+
+    @Test
+    void deveBloquearPreflightDeOrigemNaoConfigurada()
+            throws Exception {
+
+        mockMvc.perform(
+                        options("/api/v1/categorias/consultar")
+                                .header(
+                                        HttpHeaders.ORIGIN,
+                                        "https://origem-nao-permitida.example"
+                                )
+                                .header(
+                                        HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD,
+                                        "GET"
+                                )
+                )
+                .andExpect(status().isForbidden());
     }
 
 }

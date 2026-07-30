@@ -1,8 +1,6 @@
 package br.com.cotiinformatica.api_financas.handlers;
 
-import br.com.cotiinformatica.api_financas.exceptions.ProcessamentoRelatorioException;
-import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
-import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
+import br.com.cotiinformatica.api_financas.exceptions.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -92,9 +91,9 @@ public class GlobalExceptionHandler {
 
     }
 
-    @ExceptionHandler(NoHandlerFoundException.class)
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
     public ProblemDetail handleRecursoNaoEncontrado(
-            NoHandlerFoundException exception,
+            Exception exception,
             HttpServletRequest request) {
 
         return createProblem(
@@ -142,6 +141,31 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 "Corpo da requisição inválido",
                 "O corpo da requisição está ausente ou contém um JSON malformado.",
+                request
+        );
+    }
+
+    @ExceptionHandler(CategoriaEmUsoException.class)
+    public ProblemDetail handleCategoriaEmUso(CategoriaEmUsoException exception, HttpServletRequest request) {
+
+        return createProblem(
+                HttpStatus.CONFLICT,
+                "Categoria em uso",
+                exception.getMessage(),
+                request
+        );
+
+    }
+
+    @ExceptionHandler(CategoriaJaCadastradaException.class)
+    public ProblemDetail handleCategoriaJaCadastrada(
+            CategoriaJaCadastradaException exception,
+            HttpServletRequest request) {
+
+        return createProblem(
+                HttpStatus.CONFLICT,
+                "Categoria já cadastrada",
+                exception.getMessage(),
                 request
         );
     }

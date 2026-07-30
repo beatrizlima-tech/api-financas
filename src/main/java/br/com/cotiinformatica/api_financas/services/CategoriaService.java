@@ -3,91 +3,82 @@ package br.com.cotiinformatica.api_financas.services;
 import br.com.cotiinformatica.api_financas.dtos.CategoriaRequest;
 import br.com.cotiinformatica.api_financas.dtos.CategoriaResponse;
 import br.com.cotiinformatica.api_financas.entities.Categoria;
+import br.com.cotiinformatica.api_financas.exceptions.CategoriaEmUsoException;
+import br.com.cotiinformatica.api_financas.exceptions.CategoriaJaCadastradaException;
 import br.com.cotiinformatica.api_financas.exceptions.RegistroNaoEncontradoException;
-import br.com.cotiinformatica.api_financas.exceptions.ValidacaoException;
 import br.com.cotiinformatica.api_financas.repositories.CategoriaRepository;
+import br.com.cotiinformatica.api_financas.repositories.MovimentacaoRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
-    public CategoriaService(CategoriaRepository categoriaRepository) {
+    private final MovimentacaoRepository movimentacaoRepository;
+
+    public CategoriaService(CategoriaRepository categoriaRepository, MovimentacaoRepository movimentacaoRepository) {
 
         this.categoriaRepository = categoriaRepository;
+        this.movimentacaoRepository = movimentacaoRepository;
     }
 
+    @Transactional
     public CategoriaResponse criar(UUID usuarioId, CategoriaRequest request) {
 
-        //Validar se os dados da categoria foram enviados
-        if (request == null) {
-            throw new ValidacaoException(
-                    "Os dados da categoria são obrigatórios."
-            );
-        }
+        validarNomeDisponivel(
+                usuarioId,
+                request.nome(),
+                null
+        );
 
-        //Criando um objeto da entidade 'Categoria'
         var categoria = new Categoria();
 
         categoria.setUsuarioId(usuarioId);
-
-        //Capturando os dados recebidos
         categoria.setNome(request.nome());
 
-        //Executar a validação
-        validarCategoria(categoria);
+        salvarCategoria(categoria);
 
-        //Remover espaços extras antes de salvar
-        categoria.setNome(categoria.getNome().trim());
-
-        //Salvar a categoria no banco de dados
-        categoriaRepository.save(categoria);
-
-        //Retornar a resposta
         return toResponse(categoria);
     }
 
+    @Transactional
     public CategoriaResponse alterar(UUID usuarioId, UUID id, CategoriaRequest request) {
 
-        //Buscar a categoria no banco de dados através do ID
+        var categoria = buscarCategoriaDoUsuario(id,usuarioId);
+
+        validarNomeDisponivel(
+                usuarioId,
+                request.nome(),
+                id
+        );
+
+        categoria.setNome(request.nome());
+
+        salvarCategoria(categoria);
+
+        return toResponse(categoria);
+    }
+
+    @Transactional
+    public CategoriaResponse excluir(UUID usuarioId, UUID id) {
+
         var categoria = buscarCategoriaDoUsuario(id, usuarioId);
 
-        //Validar se os dados da categoria foram envidados
-        if (request == null) {
-            throw new ValidacaoException(
-                    "Os dados da categoria são obrigatórios."
+        if(movimentacaoRepository.existsByCategoriaIdAndUsuarioId(id, usuarioId)) {
+            throw new CategoriaEmUsoException(
+                    "A categoria não pode ser excluída porque possui movimentações vinculadas."
             );
         }
 
-        //Capturar o nome da categoria que será alterado
-        categoria.setNome(request.nome());
-
-        //Validar o nome da categoria
-        validarCategoria(categoria);
-
-        //Remover espaços extras antes de salvar
-        categoria.setNome(categoria.getNome().trim());
-
-        //Atualizar no banco de dados
-        categoriaRepository.save(categoria);
-
-        //Retornar a resposta
-        return toResponse(categoria);
-    }
-
-    public CategoriaResponse excluir(UUID usuarioId, UUID id) {
-
-        //Buscar a categoria no banco de dados através do ID
-        var categoria = buscarCategoriaDoUsuario(id, usuarioId);
-
-        //Excluindo no banco de dados
         categoriaRepository.delete(categoria);
 
-        //Retornar a resposta
         return toResponse(categoria);
     }
 
@@ -106,20 +97,6 @@ public class CategoriaService {
 
         return toResponse(categoria);
 
-    }
-
-    private void validarCategoria(Categoria categoria) {
-
-        if (categoria.getNome() == null || categoria.getNome().trim().isEmpty()) {
-            throw new ValidacaoException(
-                    "O nome da categoria é obrigatório."
-            );
-        }
-        if (categoria.getNome().trim().length() < 6) {
-            throw new ValidacaoException(
-                    "O nome da categoria deve ter pelo menos 6 caracteres."
-            );
-        }
     }
 
     private CategoriaResponse toResponse(Categoria categoria) {
@@ -141,4 +118,45 @@ public class CategoriaService {
                 );
 
     }
+
+    private void validarNomeDisponivel(
+            UUID usuarioId,
+            String nome,
+            UUID categoriaId) {
+
+        final boolean nomeJaUtilizado;
+
+        if (categoriaId == null) {
+
+            nomeJaUtilizado = categoriaRepository
+                    .existsByUsuarioIdAndNomeIgnoreCase(
+                            usuarioId,
+                            nome
+                    );
+
+        } else {
+
+            nomeJaUtilizado = categoriaRepository
+                    .existsByUsuarioIdAndNomeIgnoreCaseAndIdNot(
+                            usuarioId,
+                            nome,
+                            categoriaId
+                    );
+        }
+
+        if (nomeJaUtilizado) {
+            throw new CategoriaJaCadastradaException();
+        }
+    }
+
+    private void salvarCategoria(Categoria categoria) {
+
+        try {
+            categoriaRepository.saveAndFlush(categoria);
+        }
+        catch (DataIntegrityViolationException exception) {
+            throw new CategoriaJaCadastradaException();
+        }
+    }
+
 }

@@ -4,7 +4,7 @@ import br.com.cotiinformatica.api_financas.dtos.CategoriaRequest;
 import br.com.cotiinformatica.api_financas.dtos.CategoriaResponse;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoRequest;
 import br.com.cotiinformatica.api_financas.dtos.MovimentacaoResponse;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
@@ -21,6 +21,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -329,7 +330,16 @@ class ApiFinancasApplicationTests {
     // ============= TESTES DE MOVIMENTAÇÕES =============
 
     private java.util.UUID criarCategoriaTeste(String nome) throws Exception {
-        var requestCategoria = new CategoriaRequest(nome);
+        var nomeUnico = "%s %s".formatted(
+                nome,
+                UUID.randomUUID()
+                        .toString()
+                        .substring(0, 8)
+        );
+
+        var requestCategoria =
+                new CategoriaRequest(nomeUnico);
+
         var resultCategoria = mockMvc.perform(
                         post("/api/v1/categorias/criar")
                                 .contentType("application/json")
@@ -992,6 +1002,232 @@ class ApiFinancasApplicationTests {
                 .getContentAsString(StandardCharsets.UTF_8);
 
         assertTrue(jsonContent.contains("\"status\":400"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar conflito ao excluir categoria com movimentações")
+    public void excluirCategoriaComMovimentacoesTest() throws Exception {
+
+        // Criar uma categoria
+        var categoriaRequest =
+                new CategoriaRequest("Categoria Em Uso");
+
+        var resultadoCategoria = mockMvc.perform(
+                        post("/api/v1/categorias/criar")
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                categoriaRequest
+                                        )
+                                )
+                )
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var categoriaJson = resultadoCategoria
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        var categoriaResponse = objectMapper.readValue(
+                categoriaJson,
+                CategoriaResponse.class
+        );
+
+        // Criar uma movimentação vinculada à categoria
+        var movimentacaoRequest = new MovimentacaoRequest(
+                "Compra vinculada",
+                LocalDate.now(),
+                new BigDecimal("100.00"),
+                "DESPESA",
+                categoriaResponse.id()
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/movimentacoes/criar")
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                movimentacaoRequest
+                                        )
+                                )
+                )
+                .andExpect(status().isCreated());
+
+        // Tentar excluir a categoria que está sendo utilizada
+        var resultadoExclusao = mockMvc.perform(
+                        delete(
+                                "/api/v1/categorias/excluir/"
+                                        + categoriaResponse.id()
+                        )
+                )
+                .andExpect(status().isConflict())
+                .andReturn();
+
+        var problemaJson = resultadoExclusao
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(
+                problemaJson.contains("Categoria em uso")
+        );
+
+        assertTrue(
+                problemaJson.contains(
+                        "A categoria não pode ser excluída porque possui movimentações vinculadas."
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("Deve impedir o cadastro de categoria com nome duplicado.")
+    public void criarCategoriaDuplicadaTest()
+            throws Exception {
+
+        var sufixo = UUID.randomUUID()
+                .toString()
+                .substring(0, 8);
+
+        var nomeOriginal =
+                "Categoria Duplicada " + sufixo;
+
+        var primeiraCategoria =
+                new CategoriaRequest(nomeOriginal);
+
+        mockMvc.perform(
+                        post("/api/v1/categorias/criar")
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                primeiraCategoria
+                                        )
+                                )
+                )
+                .andExpect(status().isCreated());
+
+        var categoriaDuplicada =
+                new CategoriaRequest(
+                        "  "
+                                + nomeOriginal.toUpperCase(Locale.ROOT)
+                                + "  "
+                );
+
+        var resultado = mockMvc.perform(
+                        post("/api/v1/categorias/criar")
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                categoriaDuplicada
+                                        )
+                                )
+                )
+                .andExpect(status().isConflict())
+                .andReturn();
+
+        var problemaJson = resultado
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(
+                problemaJson.contains(
+                        "Categoria já cadastrada"
+                )
+        );
+
+        assertTrue(
+                problemaJson.contains(
+                        "Já existe uma categoria com esse nome para este usuário."
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("Deve impedir alterar uma categoria para um nome já utilizado.")
+    public void alterarCategoriaParaNomeDuplicadoTest()
+            throws Exception {
+
+        var sufixo = UUID.randomUUID()
+                .toString()
+                .substring(0, 8);
+
+        var nomePrincipal =
+                "Categoria Principal " + sufixo;
+
+        var nomeSecundario =
+                "Categoria Secundaria " + sufixo;
+
+        var requestPrincipal =
+                new CategoriaRequest(nomePrincipal);
+
+        mockMvc.perform(
+                        post("/api/v1/categorias/criar")
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                requestPrincipal
+                                        )
+                                )
+                )
+                .andExpect(status().isCreated());
+
+        var requestSecundario =
+                new CategoriaRequest(nomeSecundario);
+
+        var resultadoSecundario = mockMvc.perform(
+                        post("/api/v1/categorias/criar")
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                requestSecundario
+                                        )
+                                )
+                )
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var categoriaSecundaria = objectMapper.readValue(
+                resultadoSecundario
+                        .getResponse()
+                        .getContentAsString(StandardCharsets.UTF_8),
+                CategoriaResponse.class
+        );
+
+        var requestNomeDuplicado =
+                new CategoriaRequest(
+                        "  "
+                                + nomePrincipal.toUpperCase(Locale.ROOT)
+                                + "  "
+                );
+
+        var resultadoAlteracao = mockMvc.perform(
+                        put(
+                                "/api/v1/categorias/alterar/"
+                                        + categoriaSecundaria.id()
+                        )
+                                .contentType("application/json")
+                                .content(
+                                        objectMapper.writeValueAsString(
+                                                requestNomeDuplicado
+                                        )
+                                )
+                )
+                .andExpect(status().isConflict())
+                .andReturn();
+
+        var problemaJson = resultadoAlteracao
+                .getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(
+                problemaJson.contains(
+                        "Categoria já cadastrada"
+                )
+        );
+
+        assertTrue(
+                problemaJson.contains(
+                        "Já existe uma categoria com esse nome para este usuário."
+                )
+        );
     }
 
 }

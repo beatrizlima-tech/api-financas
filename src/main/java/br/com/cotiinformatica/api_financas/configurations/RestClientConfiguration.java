@@ -8,11 +8,34 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class RestClientConfiguration {
 
-    @Bean
-    public RestClient restClient(@Value("${integrations.agentes-ia.base-url}") String baseUrl) {
+    private static final String INTERNAL_API_KEY_HEADER =
+            "X-Internal-Api-Key";
 
-        return RestClient.builder()
+    @Bean
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
+    }
+
+    @Bean
+    public RestClient restClient(
+            RestClient.Builder builder,
+            @Value("${integrations.agentes-ia.base-url}")
+            String baseUrl,
+            @Value("${integrations.agentes-ia.api-key}")
+            String apiKey) {
+
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "A chave de acesso à API de agentes não foi configurada."
+            );
+        }
+
+        return builder
                 .baseUrl(baseUrl)
+                .defaultHeader(
+                        INTERNAL_API_KEY_HEADER,
+                        apiKey
+                )
                 .build();
     }
 }

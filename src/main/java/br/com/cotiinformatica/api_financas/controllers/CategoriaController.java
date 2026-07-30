@@ -72,6 +72,17 @@ public class CategoriaController {
                     content = @Content
             ),
             @ApiResponse(
+                    responseCode = "409",
+                    description = "Já existe uma categoria com esse nome para o usuário autenticado.",
+                    content = @Content(
+                            mediaType =
+                                    MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(
+                                    implementation = ProblemDetail.class
+                            )
+                    )
+            ),
+            @ApiResponse(
                     responseCode = "500",
                     description = "Erro interno do servidor.",
                     content = @Content(
@@ -133,6 +144,17 @@ public class CategoriaController {
                     )
             ),
             @ApiResponse(
+                    responseCode = "409",
+                    description = "Já existe outra categoria com esse nome para o usuário autenticado.",
+                    content = @Content(
+                            mediaType =
+                                    MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(
+                                    implementation = ProblemDetail.class
+                            )
+                    )
+            ),
+            @ApiResponse(
                     responseCode = "500",
                     description = "Erro interno do servidor.",
                     content = @Content(
@@ -187,6 +209,16 @@ public class CategoriaController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Categoria não encontrada para o usuário autenticado.",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                            schema = @Schema(
+                                    implementation = ProblemDetail.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "A categoria possui movimentações vinculadas.",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(

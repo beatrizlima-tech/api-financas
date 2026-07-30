@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,17 +31,5 @@ public interface MovimentacaoRepository extends JpaRepository<Movimentacao, UUID
             Pageable paginacao
     );
 
-    @Query("""
-        SELECT m
-        FROM Movimentacao m
-        WHERE m.usuarioId = :usuarioId
-             AND m.data BETWEEN :pDataInicio AND :pDataFim
-                 ORDER BY m.data DESC
-    """)
-    List<Movimentacao> findByUsuarioIdAndData(
-            @Param("usuarioId") UUID usuarioId,
-            @Param("pDataInicio") LocalDate dataInicio,
-            @Param("pDataFim") LocalDate dataFim
-    );
-
+    boolean existsByCategoriaIdAndUsuarioId(UUID categoriaId, UUID usuarioId);
 }

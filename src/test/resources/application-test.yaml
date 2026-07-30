@@ -24,6 +24,9 @@ spring:
 server:
   port: 8083
 
+cors:
+  allowed-origins: http://localhost:4200
+
 jwt:
   issuer: api-autenticacao
   secret: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -31,6 +34,7 @@ jwt:
 integrations:
   agentes-ia:
     base-url: http://localhost:8084
+    api-key: chave-interna-ficticia-para-testes
 
 springdoc:
   api-docs:
