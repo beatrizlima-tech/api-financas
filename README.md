@@ -464,6 +464,8 @@ OpenAPI:
 http://localhost:8083/v3/api-docs
 ```
 
+> No perfil `prod`, o Swagger UI e o documento OpenAPI ficam desativados por padrão. Eles podem ser habilitados pelas variáveis `SPRINGDOC_SWAGGER_UI_ENABLED` e `SPRINGDOC_API_DOCS_ENABLED`.
+
 Health check:
 
 ```text
@@ -523,7 +525,6 @@ Gerar o pacote:
 
 ## 🚧 Próximas melhorias
 
-- adicionar perfil específico de produção;
 - completar a documentação OpenAPI dos endpoints;
 - validar o fluxo completo com a `api-agentesia`;
 - integrar ao frontend Angular;

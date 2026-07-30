@@ -907,4 +907,20 @@ class ApiFinancasApplicationTests {
         verify(rabbitTemplate, never())
                 .convertAndSend(anyString(), anyString());
     }
+
+    @Test
+    @DisplayName("Deve retornar 404 quando o recurso solicitado não existir.")
+    public void recursoNaoEncontradoTest() throws Exception {
+
+        var result = mockMvc.perform(
+                        get("/rota-inexistente"))
+                .andExpect(status().isNotFound())
+                .andReturn();
+
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains("\"status\":404"));
+        assertTrue(jsonContent.contains("\"title\":\"Recurso não encontrado\""));
+    }
 }

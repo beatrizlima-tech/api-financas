@@ -10,6 +10,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -86,6 +87,19 @@ public class GlobalExceptionHandler {
                 request
         );
 
+    }
+
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ProblemDetail handleRecursoNaoEncontrado(
+            NoHandlerFoundException exception,
+            HttpServletRequest request) {
+
+        return createProblem(
+                HttpStatus.NOT_FOUND,
+                "Recurso não encontrado",
+                "O recurso solicitado não foi encontrado.",
+                request
+        );
     }
 
     @ExceptionHandler(Exception.class)
