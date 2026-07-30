@@ -163,7 +163,7 @@ AGENTES_IA_BASE_URL
 Em caso de falha na API de agentes:
 
 1. o erro é registrado no log;
-2. o RabbitMQ realiza até três tentativas;
+2. o RabbitMQ realiza uma tentativa inicial e até três novas tentativas;
 3. o intervalo entre tentativas aumenta gradualmente;
 4. após esgotar as tentativas, a mensagem é encaminhada para a DLQ.
 
