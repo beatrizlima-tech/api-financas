@@ -923,4 +923,75 @@ class ApiFinancasApplicationTests {
         assertTrue(jsonContent.contains("\"status\":404"));
         assertTrue(jsonContent.contains("\"title\":\"Recurso não encontrado\""));
     }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando o UUID da movimentação for inválido.")
+    public void uuidDaMovimentacaoInvalidoTest() throws Exception {
+
+        var result = mockMvc.perform(
+                        get("/api/v1/movimentacoes/obter/uuid-invalido"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains("\"status\":400"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando o formato da data for inválido.")
+    public void formatoDaDataInvalidoTest() throws Exception {
+
+        var result = mockMvc.perform(
+                        get("/api/v1/movimentacoes/consultar")
+                                .param("dataInicio", "data-invalida")
+                                .param("dataFim", "2026-07-31")
+                                .param("pageIndex", "0")
+                                .param("pageSize", "25"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains("\"status\":400"));
+        assertTrue(jsonContent.contains("\"title\":\"Parâmetro inválido\""));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando uma data obrigatória não for informada.")
+    public void dataObrigatoriaNaoInformadaTest() throws Exception {
+
+        var result = mockMvc.perform(
+                        get("/api/v1/movimentacoes/consultar")
+                                .param("dataInicio", "2026-07-01")
+                                .param("pageIndex", "0")
+                                .param("pageSize", "25"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains("\"status\":400"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar 400 quando o JSON da requisição for malformado.")
+    public void jsonMalformadoTest() throws Exception {
+
+        var result = mockMvc.perform(
+                        post("/api/v1/categorias/criar")
+                                .contentType("application/json")
+                                .content("{\"nome\":"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        var jsonContent = result.getResponse()
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertTrue(jsonContent.contains("\"status\":400"));
+    }
+
 }

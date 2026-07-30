@@ -7,9 +7,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.net.URI;
@@ -98,6 +101,47 @@ public class GlobalExceptionHandler {
                 HttpStatus.NOT_FOUND,
                 "Recurso não encontrado",
                 "O recurso solicitado não foi encontrado.",
+                request
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request) {
+
+        return createProblem(
+                HttpStatus.BAD_REQUEST,
+                "Parâmetro inválido",
+                "O parâmetro '%s' possui um formato inválido."
+                        .formatted(exception.getName()),
+                request
+        );
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ProblemDetail handleMissingServletRequestParameter(
+            MissingServletRequestParameterException exception,
+            HttpServletRequest request) {
+
+        return createProblem(
+                HttpStatus.BAD_REQUEST,
+                "Parâmetro obrigatório ausente",
+                "O parâmetro '%s' é obrigatório."
+                        .formatted(exception.getParameterName()),
+                request
+        );
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleHttpMessageNotReadable(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request) {
+
+        return createProblem(
+                HttpStatus.BAD_REQUEST,
+                "Corpo da requisição inválido",
+                "O corpo da requisição está ausente ou contém um JSON malformado.",
                 request
         );
     }

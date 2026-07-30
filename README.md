@@ -485,9 +485,9 @@ Para testar endpoints protegidos:
 
 ## 🧪 Testes automatizados
 
-A aplicação possui **35 testes aprovados**:
+A aplicação possui **40 testes aprovados**:
 
-- 28 testes de aplicação, validações, CRUD e relatórios;
+- 33 testes de aplicação, validações, CRUD, parâmetros, JSON e relatórios;
 - 5 testes de segurança e isolamento entre usuários;
 - 2 testes unitários do `WorkerService`.
 
@@ -525,7 +525,6 @@ Gerar o pacote:
 
 ## 🚧 Próximas melhorias
 
-- completar a documentação OpenAPI dos endpoints;
 - validar o fluxo completo com a `api-agentesia`;
 - integrar ao frontend Angular;
 - adicionar testes com PostgreSQL/Testcontainers;
@@ -554,8 +553,8 @@ Implementado:
 - health check;
 - RabbitMQ com retry e DLQ;
 - integração configurável com a API Agentes IA;
-- Swagger/OpenAPI;
-- 35 testes aprovados.
+- documentação Swagger/OpenAPI completa;
+- 40 testes aprovados.
 
 ---
 

@@ -19,12 +19,14 @@ public class SwaggerConfiguration {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("Finanças API")
-                        .description("API para gerenciamento de movimentações financeiras desenvolvida pela COTI Informática.")
+                        .title("API Finanças")
+                        .description(
+                                "API para gerenciamento seguro de categorias e movimentações financeiras."
+                        )
                         .version("v1.0.0")
                         .contact(new Contact()
-                                .name("COTI Informática")
-                                .email("contato@cotiinformatica.com.br")
+                                .name("Beatriz Lima")
+                                .url("https://github.com/beatrizlima-tech")
                         )
                 )
                 .addSecurityItem(new SecurityRequirement()
