@@ -105,7 +105,7 @@ Essa chave não substitui o JWT do usuário. Ela protege exclusivamente a comuni
 - excluir categoria;
 - consultar categorias;
 - obter categoria por UUID;
-- validar nome obrigatório e tamanho;
+- validar nome obrigatório entre 2 e 50 caracteres;
 - remover espaços externos do nome;
 - impedir nomes duplicados para o mesmo usuário;
 - comparar duplicidades ignorando maiúsculas e minúsculas;

@@ -116,11 +116,11 @@ class ApiFinancasApplicationTests {
     }
 
     @Test
-    @DisplayName("Deve retornar erro se o nome da categoria tiver menos de 6 caracteres.")
+    @DisplayName("Deve retornar erro se o nome da categoria tiver menos de 2 caracteres.")
     public void validarNomeDaCategoriaMinimoDeCaracteresTest() throws Exception {
 
         //ARRANGE (Preparar os dados do teste)
-        var request = new CategoriaRequest("Teste");
+        var request = new CategoriaRequest("A");
 
         //ACT (Executar o endpoint POST /api/v1/categorias/criar)
         var result = mockMvc.perform(
@@ -132,7 +132,7 @@ class ApiFinancasApplicationTests {
 
         //ASSERT (verificar o resultado do teste)
         var jsonContent = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertTrue(jsonContent.contains("O nome da categoria deve ter entre 6 e 50 caracteres."));
+        assertTrue(jsonContent.contains("O nome da categoria deve ter entre 2 e 50 caracteres."));
     }
 
     @Test
